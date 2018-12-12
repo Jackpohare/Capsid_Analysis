@@ -1,0 +1,28 @@
+<project name="Capsid_Analysis" default="" basedir=".">
+    <description>
+        Capsid Analysis build file
+    </description>
+  <property name="src" location="src" />
+  <property name="build" location="bin" />
+  <property name="dist"  location="dist" />
+ 
+	 <property name="pluginsDir"  location="$basedir/../../../Fiji.app/plugins/" />
+ 
+  <property name="user.name" value="Jack O'Hare" />
+<target name="main" depends="compress" description="Main target">
+	<echo>
+		Building the Capsid Analysis .jar file.
+	</echo>
+</target>
+ <target name="compress" depends="" description="generate the distribution">
+ 	<jar jarfile="Capsid_Analysis.jar">
+ 		<fileset dir="." includes="plugins.config" />
+		<fileset dir="${build}" includes="**/*.*" />
+ 		<manifest>
+ 		 	 	      <attribute name="Built-By" value="${user.name}"/>
+ 		</manifest>
+ 	</jar>
+    <copy file="Capsid_Analysis.jar" toDir="${pluginsDir}" />
+ 	<copy file="Capsid_Analysis.jar" toDir="$basedir/../../../Fiji.app/plugins" />
+  </target>
+</project>
