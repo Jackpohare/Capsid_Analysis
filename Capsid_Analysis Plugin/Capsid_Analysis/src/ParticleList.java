@@ -1,5 +1,6 @@
 import java.awt.Color;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import ij.IJ;
@@ -67,6 +68,19 @@ public class ParticleList extends ArrayList<Particle>  {
 				pOverlap.Overlaps(true);
 			}
 		}
+	}
+	/**
+	 * Enumerates given particle list working out red and green ranking info and setting for 
+	 * each particle
+	 * @param pList List of Particles to be ranked
+	 */
+	public void RankParticles(){
+		// Get all the red particles, sort and set ranking info
+		this.sort(Comparator.comparing(Particle::redval));
+		for(int i=0;i<this.size(); i++ ) {
+			this.get(i).setRedRank(i);
+		}
+		
 	}
 	
 	public  Particle FindFirstOverlap(Particle p, int startIndex, double pointDiameter){

@@ -542,7 +542,7 @@ public class DistributionChart {
 	        	pList = _particles;
 	        }
 	        
-	    	positions = rankPositions(pList.GetArrayFromList("redval"));
+	    	positions = utils.rankPositions(pList.GetArrayFromList("redval"));
 	      
 	        n = pList.size();
 
@@ -872,8 +872,8 @@ public class DistributionChart {
 	        	redOffset = utils.Mean(red) - utils.Mean(green);
 	        }
 	        // Create charts and add panels to frame 
-	        frame.add(createPanel(new Color(0,255,0,128),Bins, greenBinCounts, green, "Green", this.maxGreenFrequency,0,greenOffset,s.greenThreshold));
-	        frame.add(createPanel(new Color(255,0,0,128),Bins, redBinCounts, red, "Red",this.maxRedFrequency,1,redOffset,s.redThreshold));
+	        frame.add(createPanel(new Color(0,255,0,128),Bins, greenBinCounts, green, "Green", this.maxGreenFrequency,0,greenOffset,settings.greenThreshold));
+	        frame.add(createPanel(new Color(255,0,0,128),Bins, redBinCounts, red, "Red",this.maxRedFrequency,1,redOffset,settings.redThreshold));
 	        frame.pack();
 	        frame.setLocationRelativeTo(null);
 	        // SHow frame

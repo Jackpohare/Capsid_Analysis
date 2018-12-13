@@ -140,6 +140,22 @@ final public class utils {
 		}
 	}
 
+	static public Integer[] rankPositions(double[] values) {
+
+	    int n = values.length;
+	    Integer [] indexes = new Integer[n];
+	    double[] data = new double[n];
+	    for (int i = 0; i < n; i++) {
+	        indexes[i] = i;
+	        data[i] = values[i];
+	    }
+	    ArrayIndexComparator comparator = new ArrayIndexComparator(data);
+	    indexes = comparator.createIndexArray();
+	    Arrays.sort(indexes, comparator);
+
+	    return indexes;
+	}
+
 	static public int getIndexOf(double[] sortedArray, double value) {
 
 		for (int i = 0; i < sortedArray.length; i++) {
