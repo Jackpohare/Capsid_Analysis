@@ -104,7 +104,7 @@ public class DistributionChart {
 				double []Counts = GetCounts(Bins,true);
 				double []CountsBelowThreshold = GetCounts(Bins,false);
 				if (this._plot!=null){this._plot.clearDomainMarkers();}
-				int start = getIndexOf(this._sortedValues,this._threshold);
+				int start = utils.getIndexOf(this._sortedValues,this._threshold);
 				double []positives = Arrays.copyOfRange(this._sortedValues,start,this._sortedValues.length-1);
 				drawPlot(Bins,Counts,CountsBelowThreshold,positives);
 			}

@@ -1,11 +1,60 @@
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
 import ij.IJ;
+import ij.gui.Roi;
 import ij.process.ImageStatistics;
 
 public class ParticleList extends ArrayList<Particle>  {
+	/**
+	 * @param r
+	 * @param rois
+	 * @return
+	 */
+	public int GetNearestOverlap(Roi r, double pointDiameter){
+		// first find index of nearest - so we need to loop through all (non null) Roi
+		int index=-1;double distance = pointDiameter;
+		for(int i=0;i<this.size();i++){
+			double thisDist = this.get(i).dist(r); 
+			if (thisDist  < pointDiameter/2.0 && thisDist < distance){
+				index = i;
+				distance = thisDist;
+			}
+		}
+		return index;
+	}
 	
+	public ParticleList  Merge(ParticleList green,AnalysisSettings settings){
+		 IJ.log("Merge " + this.size() + " red and " + green.size() + " green");
+			ParticleList roiList = (ParticleList) new ArrayList<Particle>();
+			
+			// Loop through all reds, looking for overlapping green and create a new merged Roi which gets added to list
+			for(int i=0;i<this.size();i++){
+				int index = green.GetNearestOverlap(this.get(i).roi, settings.pointDiameter);
+				if (index >= 0 ){
+					// SHould do something here about adjusting centre
+					this.get(i).roi.setStrokeColor(Color.orange);
+					if ( settings.bFillROI) { this.get(i).roi.setFillColor(Color.orange); }
+					roiList.add(this.get(i));
+					
+					green.remove(index) ;
+				} else {
+					this.get(i).roi.setStrokeColor(Color.red);
+					if ( settings.bFillROI) { this.get(i).roi.setFillColor(Color.red); }
+					roiList.add(this.get(i));
+				}
+			}
+	
+			// Loop through all remaining greens and  added to list
+			for(int i=0;i<green.size();i++){
+					green.get(i).roi.setStrokeColor(Color.green);
+					if ( settings.bFillROI) { this.get(i).roi.setFillColor(Color.green); }
+					roiList.add(green.get(i));
+			}
+	
+			return roiList;
+		}
 
 	public  void FindOverlaps(double pointDiameter){
 		Particle p,pOverlap;
@@ -182,5 +231,80 @@ public class ParticleList extends ArrayList<Particle>  {
 		for(int i=0;i<this.size();i++){
 			this.get(i).setPct();
 		}
+	}
+	
+	/**
+	 * Enumerates given particles list and returns array of ALL green intensity values
+	 * @param pList Given particle list
+	 * @return array of green intensity values for all given particvles
+	 */
+	double[] GetGreen( ){
+		return GetGreen(false);
+	}
+	
+	double[] GetPosRed(){
+
+		return GetPosRedList().GetArrayFromList("redval");
+	}
+	/**
+	 * Return array of green intensity values for either all or just green positive particles in the given list
+	 * @param pList List of particles
+	 * @param bAll Flag to indicate whether to get all green values (true) or just green positive particles (false)
+	 * @return Returns array of green intensity values for selected set of particles
+	 */
+	double[] GetGreen( boolean bAll ){
+		ParticleList posList = (ParticleList) new ArrayList<Particle>();
+		for(int i=0;i<this.size();i++){
+			Particle p = this.get(i);
+			if (p.IsGreenPositive() || bAll){
+				posList.add(p);
+			}
+		}
+
+		return posList.GetArrayFromList("greenval");
+	}	// end GetGreen
+	
+	/**
+	 * Return array of red intensity values for either all or just red positive particles in the given list
+	 * @param pList List of particles
+	 * @param bAll Flag to indicate whether to get all red values (true) or just red positive particles (false)
+	 * @return Returns array of red intensity values for selected set of particles
+	 */
+	double[] GetRed(List<Particle> pList, boolean bAll ){
+		ParticleList posList = (ParticleList) new ArrayList<Particle>();
+		for(int i=0;i<pList.size();i++){
+			Particle p = pList.get(i);
+			if (p.IsRedPositive() || bAll){
+				posList.add(p);
+			}
+		}
+
+		return posList.GetArrayFromList("redval");
+	}
+	
+	public ParticleList GetPosRedList(){
+		ParticleList posList = (ParticleList) new ArrayList<Particle>();
+		for(int i=0;i<this.size();i++){
+			Particle p = this.get(i);
+			if (p.IsRedPositive()){
+				posList.add(p);
+			}
+		}
+
+		return posList;
+	}
+	
+	/**
+	 * Get the current max ID+1 from the given particle list
+	 * @return returns 1 beyond the current max ID - ie the ID of the NEXT particle that would be added
+	 */
+	public int GetMaxID(){
+		int id = 0;
+		if (this.size()==0) return 0;
+		for(int i=0;i<this.size();i++){
+			Particle p = this.get(i);
+			if (p.id > id){id=p.id;}
+		}
+		return id+1;
 	}
 }

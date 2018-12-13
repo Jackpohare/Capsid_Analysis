@@ -260,9 +260,9 @@ public ResultsTable rt;;
 			
 			IJ.log("Particle count: "+this.particles.size());
 	
-			RecalcParticles(this.particles);
+			this.particles.RecalcParticles(this.settings);
 		    int []pixels = GetBackgroundPixels();
-		    IJ.log("Background Red mean and SD: "+ utils.Mean(pixels,"red") + ", " + utils.StdDev(pixels,"red"));
+		    IJ.log("Background Red mean and SD: " +utils.Mean(pixels, "red") + ", " + utils.StdDev(pixels,"red"));
 		    IJ.log("Background Green mean and SD: "+ utils.Mean(pixels,"green") + ", " + utils.StdDev(pixels,"green"));
 		    
 		    settings.redBackgroundMean = utils.Mean(pixels,"red") ;
@@ -628,16 +628,16 @@ public ResultsTable rt;;
 	    
 	    if (s.debug > 0) { IJ.log("\nDoPositiveFrequencyPlot - " + sTitle);}
 	    
-	    GetMax(particles,settings);
+	    settings.GetMax(particles);
 
 	    int nCount;
 	    if (bPositivesOnly) {
-	    	red = GetPosRed(particles);
-	    	green = GetPosGreen(particles);
+	    	red = particles.GetPosRed();
+	    	green = particles.GetPosGreen();
 	        nCount = red.length;
 	    } else {
 	        red = particles.GetArrayFromList( "redval");
-	        green = GetArrayFromList(particles,"greenval");
+	        green = particles.GetArrayFromList("greenval");
 	        nCount = red.length;
 	    }
 	    double maxGreen = 0,maxRed=0;
@@ -728,7 +728,7 @@ public ResultsTable rt;;
 	    }
 
 
-	    Plot p = new Plot(sTitle, (settings.thresholdMethod==THRESHOLD_MEAN?"Mean ":"")+"Intensity", "Count of particles");
+	    Plot p = new Plot(sTitle, (settings.thresholdMethod==ThresholdMode.THRESHOLD_MEAN?"Mean ":"")+"Intensity", "Count of particles");
 	    // Plot.setLimits(0,x.length, greenMax*1.1);
 	    //Plot.setFontSize(14);
 	    // Plot.addText(sTitle,0.1, 0.1);
@@ -910,7 +910,7 @@ public ResultsTable rt;;
 	
  public void DoPlots(AnalysisSettings settings) {
 	 DistributionChart  newChart;
-	GetMax(particles,settings);
+	settings.GetMax(particles);
     // Get chosen plot 
     Vector<Choice> choices = dlg.getChoices();
     int plotType = choices.get(1).getSelectedIndex();
@@ -972,7 +972,7 @@ public ResultsTable rt;;
 	 */
 		public void DoPopupMenu(ParticleList pList,int x,int y,int offScreenX,int offScreenY){
 			JPopupMenu menu = new JPopupMenu("Add Menu");
-			Particle p = new Particle(GetMaxID(particles),offScreenX, offScreenY);
+			Particle p = new Particle(particles.GetMaxID(),offScreenX, offScreenY,settings);
 			p.setIntensity();
 			p.setPct();
 			p.classify();
@@ -1047,8 +1047,8 @@ public ResultsTable rt;;
 		    
 		    
 		    Plot p = new Plot((bPositivesOnly?"Postiive":"All")+" Scatter Plot [" + s.image.getTitle() + "]",
-		    		"Green " +(settings.thresholdMethod==THRESHOLD_MEAN?"Mean ":"")+ "Intensity   \u2192",
-		    		"Red " +(settings.thresholdMethod==THRESHOLD_MEAN?"Mean ":"")+ "Intensity   \u2192");
+		    		"Green " +(settings.thresholdMethod==ThresholdMode.THRESHOLD_MEAN?"Mean ":"")+ "Intensity   \u2192",
+		    		"Red " +(settings.thresholdMethod==ThresholdMode.THRESHOLD_MEAN?"Mean ":"")+ "Intensity   \u2192");
 		    double yMax = s.maxRed*1.05;
 		    double xMax = (bPositivesOnly ? s.maxPositiveGreen : s.maxGreen) * 1.1;
 /*		    if (bPositivesOnly && s.maxRed > s.maxPositiveGreen) { xMax = s.maxRed * 1.1; }
@@ -1094,8 +1094,8 @@ public ResultsTable rt;;
 	/** Shows the current ROI based on checkboxes for which we want to see
 	 * @param s Settings
 	 */
-	public static void DoShowROI(AnalysisSettings s) {
-		if ( settings.debug > 0 ){ IJ.log("DoShowROI");}
+	public  void DoShowROI(AnalysisSettings s) {
+		if ( s.debug > 0 ){ IJ.log("DoShowROI");}
 	    if (dlg == null) { IJ.log("No dialog"); }
 
 	    /* Get settings for what to show */
@@ -1202,12 +1202,12 @@ public ResultsTable rt;;
     ParticleList pList = particles;
     
     if(bPositivesOnly) {
-    	pList=GetPosRedList(particles);
+    	pList=particles.GetPosRedList();
     } else {
     	pList = particles;
   
     }
-	 positions = rankPositions(GetArrayFromList(pList,"redval"));
+	 positions = rankPositions(pList.GetArrayFromList("redval"));
   
     n = pList.size();
 
@@ -1224,13 +1224,13 @@ public ResultsTable rt;;
             y[n++] = pList.get(j).greenval();
     }
 
-    double yMax = Max(pList, "green") * 1.1;
-    if (bPositivesOnly && Max(pList, "red") > yMax) { yMax = Max(pList, "red") * 1.1; }
+    double yMax = pList.Max("green", s.thresholdMethod) * 1.1;
+    if (bPositivesOnly && pList.Max( "red", s.thresholdMethod) > yMax) { yMax = pList.Max( "red", s.thresholdMethod) * 1.1; }
     
-    else if (Max(pList, "red") > yMax) { yMax = Max(pList, "red")  * 1.1; }
+    else if (pList.Max("red", s.thresholdMethod) > yMax) { yMax = pList.Max( "red",s.thresholdMethod)  * 1.1; }
 
     Plot p = new Plot("Sorted Intensity Plot: " + ( bPositivesOnly ? "Positives" : "All"), "n", 
-    		settings.thresholdMethod==THRESHOLD_MEAN?"Mean ":""+"Intensity");
+    		settings.thresholdMethod==ThresholdMode.THRESHOLD_MEAN?"Mean ":""+"Intensity");
     p.setLimits(0, n, 0, yMax);
     p.setFont(-1, 14);
     if (bPositivesOnly){
@@ -1302,11 +1302,11 @@ public ResultsTable rt;;
         this.settings.pointDiameter = Double.parseDouble(values.get(TF_POINTDIAMETER).getText());
 
         Vector<Choice> choices = dlg.getChoices();
-        settings.thresholdMethod = choices.get(0).getSelectedIndex();
+        settings.thresholdMethod = ThresholdMode.values()[choices.get(0).getSelectedIndex()];
 
         this.settings.backgroundDevFactor = Double.parseDouble(values.get(TF_BACKGROUNDDEV).getText());
 
-        if (THRESHOLD_MEAN== settings.thresholdMethod){
+        if (ThresholdMode.THRESHOLD_MEAN== settings.thresholdMethod){
         	this.settings.redThreshold = (settings.redBackgroundMean+settings.redBackgroundStdDev*settings.backgroundDevFactor);
         	this.settings.greenThreshold = (settings.greenBackgroundMean+settings.greenBackgroundStdDev*settings.backgroundDevFactor);
         } else {
@@ -1520,19 +1520,7 @@ public ResultsTable rt;;
 	}
 	
 
-	/**
-	 * Get the current max ID+1 from the given particle list
-	 * @param pList particle list
-	 * @return returns 1 beyond the current max ID
-	 */
-	public int GetMaxID(List<Particle> pList){
-		int id = 0;
-		for(int i=0;i<particles.size();i++){
-			Particle p = particles.get(i);
-			if (p.id > id){id=p.id;}
-		}
-		return id+1;
-	}
+
 	/**
 	 * Returns a set of Roi centred on maxima found for the current image
 	 * @return Array of Roi of current pointDiameter centred at maxima as found using current noiseTolerance
@@ -1577,86 +1565,11 @@ public ResultsTable rt;;
 		return pList;
 	}
 	
-/**
- * @param r
- * @param rois
- * @return
- */
-public int GetNearestOverlap(Roi r,ParticleList particles){
-	// first find index of nearest - so we need to loop through all (non null) Roi
-	int index=-1;double distance = settings.pointDiameter;
-	for(int i=0;i<particles.size();i++){
-		double thisDist = particles.get(i).dist(r); 
-		if (thisDist  < settings.pointDiameter/2.0 && thisDist < distance){
-			index = i;
-			distance = thisDist;
-		}
-	}
-	return index;
-}
+
 	
 
-	/**
-	 * Return array of green intensity values for either all or just green positive particles in the given list
-	 * @param pList List of particles
-	 * @param bAll Flag to indicate whether to get all green values (true) or just green positive particles (false)
-	 * @return Returns array of green intensity values for selected set of particles
-	 */
-	double[] GetGreen(List<Particle> pList, boolean bAll ){
-		List<Particle>posList = new ArrayList<Particle>();
-		for(int i=0;i<pList.size();i++){
-			Particle p = pList.get(i);
-			if (p.IsGreenPositive() || bAll){
-				posList.add(p);
-			}
-		}
 
-		return GetArrayFromList(posList,"greenval");
-	}	// end GetGreen
-	
-	/**
-	 * Return array of red intensity values for either all or just red positive particles in the given list
-	 * @param pList List of particles
-	 * @param bAll Flag to indicate whether to get all red values (true) or just red positive particles (false)
-	 * @return Returns array of red intensity values for selected set of particles
-	 */
-	double[] GetRed(List<Particle> pList, boolean bAll ){
-		List<Particle>posList = new ArrayList<Particle>();
-		for(int i=0;i<pList.size();i++){
-			Particle p = pList.get(i);
-			if (p.IsRedPositive() || bAll){
-				posList.add(p);
-			}
-		}
 
-		return GetArrayFromList(posList,"redval");
-	}
-	
-	/**
-	 * Enumerates given particles list and returns array of ALL green intensity values
-	 * @param pList Given particle list
-	 * @return array of green intensity values for all given particvles
-	 */
-	double[] GetGreen(List<Particle> pList ){
-		return GetGreen(pList,false);
-	}
-	
-	double[] GetPosRed(List<Particle> pList){
-
-		return GetArrayFromList(GetPosRedList(pList),"redval");
-	}
-	
-	public List<Particle> 	GetPosRedList(List<Particle> pList){
-		List<Particle>posList = new ArrayList<Particle>();
-		for(int i=0;i<pList.size();i++){
-			Particle p = pList.get(i);
-			if (p.IsRedPositive()){
-				posList.add(p);
-			}
-		}
-
-		return posList;
-	}
 
 	public int GetROIHits(boolean [] hits){
 		Point[] points;
@@ -1718,36 +1631,7 @@ public int GetNearestOverlap(Roi r,ParticleList particles){
 
 
 
-	public List<Particle>  Merge(List<Particle> red,List<Particle> green){
-		 IJ.log("Merge " + red.size() + " red and " + green.size() + " green");
-			List<Particle> roiList = new ArrayList<Particle>();
-			
-			// Loop through all reds, looking for overlapping green and create a new merged Roi which gets added to list
-			for(int i=0;i<red.size();i++){
-				int index = GetNearestOverlap(red.get(i).roi,green);
-				if (index >= 0 ){
-					// SHould do something here about adjusting centre
-					red.get(i).roi.setStrokeColor(Color.orange);
-					if ( settings.bFillROI) { red.get(i).roi.setFillColor(Color.orange); }
-					roiList.add(red.get(i));
-					
-					green.remove(index) ;
-				} else {
-					red.get(i).roi.setStrokeColor(Color.red);
-					if ( settings.bFillROI) { red.get(i).roi.setFillColor(Color.red); }
-					roiList.add(red.get(i));
-				}
-			}
-	
-			// Loop through all remaining greens and  added to list
-			for(int i=0;i<green.size();i++){
-					green.get(i).roi.setStrokeColor(Color.green);
-					if ( settings.bFillROI) { red.get(i).roi.setFillColor(Color.green); }
-					roiList.add(green.get(i));
-			}
-	
-			return roiList;
-		}
+
 	
 
 
@@ -1776,10 +1660,10 @@ public int GetNearestOverlap(Roi r,ParticleList particles){
         double bucketWidth=2*iqr(green)/Math.pow(green.length, 1.0/3);
 		if (s.debug > 0){ IJ.log("bucketWidth = "+bucketWidth); }
         
-        double mean = Mean(green);
-        double StdDev = StdDev(green,mean);
-        double redMean = Mean(red);
-        double redStdDev = StdDev(red,redMean);
+        double mean = utils.Mean(green);
+        double StdDev = utils.StdDev(green,mean);
+        double redMean = utils.Mean(red);
+        double redStdDev = utils.StdDev(red,redMean);
 
         if (s.debug > 0){ IJ.log("green mean = " + mean+ ", stdDev = "+StdDev); }
         if (s.debug > 0){ IJ.log("red mean = " + redMean+ ", stdDev = "+redStdDev); }
@@ -2117,12 +2001,12 @@ public int GetNearestOverlap(Roi r,ParticleList particles){
 
 	        String[] Values = {s.image.getTitle(), String.valueOf(particles.size()),String.valueOf(s.noiseTolerance), 
 	        		String.valueOf(s.pointDiameter),String.valueOf(s.redBackground), String.valueOf(s.greenBackground),
-	                      Count(particles,"red") + " (" + String.format("%.1f",Count(particles,"red") * 100.0 / count) + "%) of which " + Count(particles,"redonly") + " (" + String.format("%.1f",Count(particles,"redonly") * 100.0 / count) + "%) are red only",
-	                      Count(particles,"green") + " (" + String.format("%.1f",Count(particles,"green") * 100.0 / count) + "%) of which " + Count(particles,"greenonly") + " (" + String.format("%.1f",Count(particles,"greenonly") * 100.0 / count) + "%) are green only",
-	                      Count(particles,"both") + " (" + String.format("%.1f",Count(particles,"both") * 100.0 / count) + "%)",
+	                      particles.Count("red") + " (" + String.format("%.1f",particles.Count("red") * 100.0 / count) + "%) of which " + particles.Count("redonly") + " (" + String.format("%.1f",particles.Count("redonly") * 100.0 / count) + "%) are red only",
+	                      particles.Count("green") + " (" + String.format("%.1f",particles.Count("green") * 100.0 / count) + "%) of which " + particles.Count("greenonly") + " (" + String.format("%.1f",particles.Count("greenonly") * 100.0 / count) + "%) are green only",
+	                      particles.Count("both") + " (" + String.format("%.1f",particles.Count("both") * 100.0 / count) + "%)",
 	                      // s.nRedNoise + " (" + (s.nRedNoise * 100.0 / s.count)+ "%)",
 	                      // s.nGreenNoise + " (" + (s.nGreenNoise * 100.0 / s.count) + "%)",
-	                      Count(particles,"empty") + " (" + String.format("%.1f",Count(particles,"empty") * 100.0 / count) + "%)",
+	                      particles.Count("empty") + " (" + String.format("%.1f", particles.Count("empty") * 100.0 / count) + "%)",
 	                      String.format("%.1f", s.maxRed), String.format("%.1f", s.maxGreen),
 	                      String.format("%.2f", settings.redBackgroundMean) ,
 	                      String.format("%.2f", settings.redBackgroundStdDev),
@@ -2141,7 +2025,7 @@ public int GetNearestOverlap(Roi r,ParticleList particles){
 	    } 
 
 	public void SetThresholdFromParticle(Particle p,String channel,boolean setBelow){
-		if (settings.thresholdMethod==THRESHOLD_MEAN){
+		if (settings.thresholdMethod==ThresholdMode.THRESHOLD_MEAN){
 			if (channel=="green") {
 				settings.greenThreshold = p.greenmean;
 				if (setBelow){settings.greenThreshold = p.greenmean*1.005;}
@@ -2159,7 +2043,7 @@ public int GetNearestOverlap(Roi r,ParticleList particles){
 			}
 			
 		}
-		ClassifyParticles(particles);
+		particles.ClassifyParticles();
 		SetResults(settings);
 		UpdateControlPanel();
 		
@@ -2242,8 +2126,8 @@ public int GetNearestOverlap(Roi r,ParticleList particles){
 
 	    // Test my mean and SD
 	    int [] pixels = (int[]) settings.image.getProcessor().getPixels();
-	    IJ.log("My Red mean and SD: "+ Mean(pixels,"red") + ", " + StdDev(pixels,"red"));
-	    IJ.log("My Green mean and SD: "+ Mean(pixels,"green") + ", " + StdDev(pixels,"green"));
+	    IJ.log("My Red mean and SD: "+ utils.Mean(pixels,"red") + ", " + utils.StdDev(pixels,"red"));
+	    IJ.log("My Green mean and SD: "+ utils.Mean(pixels,"green") + ", " + utils.StdDev(pixels,"green"));
 	    
 	} 
 	
@@ -2278,7 +2162,7 @@ public int GetNearestOverlap(Roi r,ParticleList particles){
 										"Positive Particles Comparitive Distribution Plot","Positive Particles Sorted Intensity Plot"
 										};
 
-	static ItemListener cbxHandler = new ItemListener() {
+	ItemListener cbxHandler = new ItemListener() {
 		
 	@Override
     public void itemStateChanged(ItemEvent event) {
@@ -2312,8 +2196,6 @@ public int GetNearestOverlap(Roi r,ParticleList particles){
 	 * @param s Settings for this dialog
 	 */
 	private void ShowDialog(AnalysisSettings s){
-		
-
 
 		NonBlockingGenericDialog  cp = new NonBlockingGenericDialog("Capsid Analysis"+sVersion);
 	    cp.hideCancelButton();
@@ -2597,8 +2479,8 @@ public int GetNearestOverlap(Roi r,ParticleList particles){
 	 	Vector<Checkbox> cbx  = dlg.getCheckboxes();
 	    int [] idx = {CB_REDONLY,CB_GREENONLY,CB_BOTH,CB_EMPTY};
 	    
-	    String[] labels = {"Red Only (" + Count(particles,"redonly") + ")", "Green Only (" + Count(particles,"greenonly") + ")", "Both (" + Count(particles,"both") + ")", 
-	    		           "Empty (" + Count(particles,"empty") + ")"};
+	    String[] labels = {"Red Only (" + particles.Count("redonly") + ")", "Green Only (" + particles.Count("greenonly") + ")", "Both (" + particles.Count("both") + ")", 
+	    		           "Empty (" + particles.Count("empty") + ")"};
 
 	    for (int i = 0; i < idx.length; i++) {
 	        cbx.get(idx[i]).setLabel(labels[i]);
