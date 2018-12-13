@@ -136,7 +136,7 @@ public class ParticleList extends ArrayList<Particle>  {
 	}
 
 	double[] GetPosGreen(){
-		List<Particle>posList = new ArrayList<Particle>();
+		ParticleList posList = (ParticleList) new ArrayList<Particle>();
 		for(int i=0;i<this.size();i++){
 			Particle p = this.get(i);
 			if (p.IsRedPositive()){
@@ -148,7 +148,7 @@ public class ParticleList extends ArrayList<Particle>  {
 	}
 	
 	double[] GetNegGreen(){
-		List<Particle>posList = new ArrayList<Particle>();
+		ParticleList posList = (ParticleList) new ArrayList<Particle>();
 		for(int i=0;i<this.size();i++){
 			Particle p = this.get(i);
 			if (!p.IsGreenPositive()){
@@ -160,7 +160,7 @@ public class ParticleList extends ArrayList<Particle>  {
 	}
 
 	double[] GetNegRed(){
-		List<Particle>posList = new ArrayList<Particle>();
+		ParticleList posList = (ParticleList) new ArrayList<Particle>();
 		for(int i=0;i<this.size();i++){
 			Particle p = this.get(i);
 			if (!p.IsRedPositive()){
@@ -270,10 +270,10 @@ public class ParticleList extends ArrayList<Particle>  {
 	 * @param bAll Flag to indicate whether to get all red values (true) or just red positive particles (false)
 	 * @return Returns array of red intensity values for selected set of particles
 	 */
-	double[] GetRed(List<Particle> pList, boolean bAll ){
+	double[] GetRed( boolean bAll ){
 		ParticleList posList = (ParticleList) new ArrayList<Particle>();
-		for(int i=0;i<pList.size();i++){
-			Particle p = pList.get(i);
+		for(int i=0;i<this.size();i++){
+			Particle p = this.get(i);
 			if (p.IsRedPositive() || bAll){
 				posList.add(p);
 			}

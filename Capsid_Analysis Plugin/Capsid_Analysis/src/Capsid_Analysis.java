@@ -79,57 +79,8 @@ import ij.text.TextWindow;
 public class Capsid_Analysis  implements PlugIn,ActionListener {
 	
 
-	
-	public XYSeries XYSeriesFromArrays(String key,double[] x, double y[]){
-    	XYSeries series = new XYSeries(key);
-    	for(int i=0;i<x.length;i++){
-    		series.add(x[i],y[i]);
-    	}
-    	return series;
-    }
+
     
-
-
-    public  CurveFitter GetFit(double []x, double[]y, String key, DefaultXYDataset xyData){
-	    
-	    
-	    CurveFitter cf = new CurveFitter(x, y);
-
-	    cf.doFit(CurveFitter.GAUSSIAN);
-
-	    double[] params = cf.getParams();
-	    for (int i = 0; i < params.length; i++) {
-	        if (settings.debug > 0) { IJ.log("param " + i + ": " + params[i]); }
-	    }
-
-	    // Max X
-	    double xMax = x[x.length - 1];
-	    double[] fitX = new double[x.length * 2 ];
-	    double[] fitY = new double[x.length * 2 ];
-	    int j = 0;
-	    fitX[j] = 0;
-	    fitY[j] = CurveFitter.f(CurveFitter.GAUSSIAN, params, fitX[j]);
-	    j++;
-	    for (int i = 0; i < x.length; i++) {
-	        fitX[j] = x[i];
-	        fitY[j] = CurveFitter.f(CurveFitter.GAUSSIAN, params, fitX[j]);
-	        j++;
-	        if (i < x.length - 1) {
-	            fitX[j] = (x[i] + x[i + 1]) / 2.0;
-	            fitY[j] = CurveFitter.f(CurveFitter.GAUSSIAN, params, fitX[j]);
-	            j++;
-	        }
-	    }
-
-	    double [][]xy = new double[2][];
-	    xy[0] = fitX;
-	    xy[1] = fitY;
-	    
-	    xyData.addSeries(key, xy);
-	    
-	    return cf;
-    }
-	
 	class PopupActionListener implements ActionListener {
 		Particle p;
 		  public PopupActionListener(Particle p2) {
@@ -1478,47 +1429,6 @@ public ResultsTable rt;;
 		return backgroundPixels;
 	}
 
-	/**
-	 * @param bucketWidth Width of each bucket in the distribution
-	 * @param bucket THe centre values of each bucket
-	 * @param values THe values to be counted into distribution
-	 * @param counts The counts of each value centred on the matching bucket
-	 */
-	public void GetFrequencyDistirubtion(double[] bucket, double [] values, double[] counts, double bucketWidth){
-	       double[] x = Arrays.copyOf(values, values.length);
-		    Arrays.sort(x);;
-	        int nBinIndex = 0;
-	        int nBucketCount = bucket.length;
-	        
-	        double binTop = bucket[1] - bucketWidth/2;
-	        
-	        for(int i=0;i<counts.length;i++){
-	        	counts[i] = 0;
-	        }
-	        
-		    for (int i = 0; i < x.length; i++) {
-		    	if ( x[i] < binTop) { 
-		    		counts[nBinIndex]++;
-		    		}
-		    	else {
-		    		nBinIndex++;
-		    		
-		    		--i;
-			        if (nBinIndex >= nBucketCount) {
-			        	IJ.log("Value "+(i+1)+ "  outside buckets =" +x[i+1]);
-			        	break;
-			        } else { binTop = bucket[nBinIndex]+bucketWidth/2;}
-		    	}
-		    }
-		    if (settings.debug >=3){
-		    	IJ.log("\nGetFrequencyDistirubtion\nBucket width:" + bucketWidth+ "\nBucket count: "+bucket.length);
-		    	for(int i=0;i<bucket.length;i++){
-		    		IJ.log(i+","+bucket[i]+","+counts[i]);
-		    	}
-		    	
-		    }
-	}
-	
 
 
 	/**
@@ -1608,25 +1518,6 @@ public ResultsTable rt;;
 		IJ.log("GetROIHits background count  = " + backgroundCount);
 		return backgroundCount;
 		}
-	
-	double iqr(double[] values) {
-	    if (settings.debug > 0) {
-	        IJ.log("IQR on array length "+values.length);
-	    }
-	    double[] x = Arrays.copyOf(values, values.length);
-	    
-	    Arrays.sort(x);;
-
-	    double q3 = quantile(x,0.75);
-	    double q1 = quantile(x,0.25);
-	    if (settings.debug > 0) {
-	        IJ.log("IQR Q3 = " + q3);
-	        IJ.log("IQR Q1 = " + q1);
-	    }
-	    return q3-q1;
-	}
-	
-
 
 
 
@@ -1710,37 +1601,6 @@ public ResultsTable rt;;
 	   ColumnChart(xyGreen, xyRed);
 	   
 	}
-	
-	double quantile( double[] arr, double p ) {
-	    // Courtesy of https://github.com/compute-io/quantile
-	    int len = arr.length,
-			id;
-
-	    // Cases...
-
-	    // [0] 0th percentile is the minimum value...
-	    if ( p == 0.0 ) {
-	        return arr[ 0 ];
-	    }
-	    // [1] 100th percentile is the maximum value...
-	    if ( p == 1.0 ) {
-	        return arr[ len-1 ];
-	    }
-	    // Calculate the vector index marking the quantile:
-	    id = (int) (( len*p ) - 1);
-
-	    // [2] Is the index an integer?
-	    if ( id == Math.floor( id ) ) {
-	        // Value is the average between the value at id and id+1:
-	        return ( arr[ id ] + arr[ id+1 ] ) / 2.0;
-	    }
-	    // [3] Round up to the next index:
-	    id = (int) Math.ceil( id );
-	    if(settings.debug>0){
-	    	IJ.log("Quantile "+p+" = " + arr[id] + " at index "+id);
-	    }
-	    return arr[ id ];
-	} // end FUNCTION quantile()
 
 	public Integer[] rankPositions(double[] values) {
 
@@ -1765,7 +1625,7 @@ public ResultsTable rt;;
 	 * each particle
 	 * @param pList List of Particles to be ranked
 	 */
-	public void RankParticles(List<Particle> pList){
+	public void RankParticles(ParticleList pList){
 		// Get all the red particles, sort and set ranking info
 		pList.sort(Comparator.comparing(Particle::redval));
 		for(int i=0;i<pList.size(); i++ ) {
@@ -1963,7 +1823,7 @@ public ResultsTable rt;;
 	   
 	}
 	
-	 public void SetRoi(List<Particle> pList){
+	 public void SetRoi(ParticleList pList){
 		RoiManager rm = RoiManager.getRoiManager();
 		for(int i=0;i<pList.size();i++){
 			Particle p = pList.get(i);
@@ -2053,7 +1913,7 @@ public ResultsTable rt;;
 		
 	}
 	
-	public void DoRemove(List<Particle> pList,String type){
+	public void DoRemove(ParticleList pList,String type){
 		switch (type) {
 		case "overlap":
 			for(int i=pList.size()-1;i>=0;i--){
