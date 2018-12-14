@@ -24,5 +24,6 @@
  	</jar>
     <copy file="Capsid_Analysis.jar" toDir="${pluginsDir}" />
  	<copy file="Capsid_Analysis.jar" toDir="$basedir/../../../Fiji.app/plugins" />
+ 	<copy file="Capsid_Analysis.jar" toDir="/Users/jackp/Fiji.app/plugins" />
   </target>
 </project>

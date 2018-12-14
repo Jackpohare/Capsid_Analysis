@@ -5,6 +5,7 @@ import java.util.List;
 
 import ij.IJ;
 import ij.gui.Roi;
+import ij.plugin.frame.RoiManager;
 import ij.process.ImageStatistics;
 
 public class ParticleList extends ArrayList<Particle>  {
@@ -24,6 +25,12 @@ public class ParticleList extends ArrayList<Particle>  {
 			}
 		}
 		return index;
+	}
+	
+	public void FillROI(boolean bFill) {
+		for(Particle p: this) {
+			p.UpdateROI(bFill);
+		}
 	}
 	
 	public ParticleList  Merge(ParticleList green,AnalysisSettings settings){
@@ -91,6 +98,36 @@ public class ParticleList extends ArrayList<Particle>  {
 				}
 		}
 		return null;
+	}
+	
+	/**
+	 * Add all Particle's ROIs to the ROI manager, setting each ROI name to match its ID
+	 * @param debug Debug level
+	 */
+	public void SetRoi(int debug) {
+		RoiManager rm = RoiManager.getRoiManager();
+		for (Particle p: this) {
+				if (p == null) {
+				IJ.log("!!Particle is null");
+			} else {
+				p.roi.setName(String.valueOf(p.id));
+				if (debug > 3) {
+					IJ.log("ROI " + p.id + ": " + p.roi.toString());
+				}
+				rm.addRoi(p.roi);
+			}
+		}
+	}
+	/**
+	 * Update the ROI in this list to set the correct colour for each particle's ROI (and whether it is filled)
+	 * @param bFill Indicat4s whether or not the ROIs should be filled
+	 */
+	public void UpdateROI(boolean bFill) {
+		
+		for(Particle p:this) {
+			p.UpdateROI(bFill);
+		}
+	
 	}
 	
 	/**

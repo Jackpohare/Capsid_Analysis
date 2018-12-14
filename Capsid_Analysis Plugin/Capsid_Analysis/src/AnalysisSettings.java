@@ -11,6 +11,7 @@ public class AnalysisSettings {
 		public double noiseTolerance= 10.0;
 		public double backgroundDevFactor = 1.0;
 	    public boolean bFillROI = false;
+		boolean bShowROI=true;
 	    public ImagePlus  image;
 	    public ImageWindow win;
 	    public ImageCanvas canvas,targetCanvas=null;

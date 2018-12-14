@@ -8,6 +8,7 @@ import java.awt.Font;
 import java.awt.Frame;
 import java.awt.Panel;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.TextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -58,6 +59,7 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import ij.WindowManager;
 import ij.gui.GenericDialog;
+import ij.gui.ImageCanvas;
 import ij.gui.NonBlockingGenericDialog;
 import ij.gui.Overlay;
 import ij.gui.Plot;
@@ -163,16 +165,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 	public static NonBlockingGenericDialog dlg;
 
-	public static void DoHideROI(AnalysisSettings s) {
-		if (s.overlay != null) {
-			s.overlay.clear();
-			s.image.setOverlay(s.overlay);
-			s.image.repaintWindow();
-			s.image.getWindow().toFront();
-		}
-	}
-
-	String sVersion = " (v1.2.09, 13-Dec-2018)";;
+	String sVersion = " (v1.2.10, 14-Dec-2018)";;
 
 	public ResultsTable rt;
 
@@ -180,11 +173,13 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 	public ParticleList particles;
 
-	public AnalysisSettings settings;
+	public AnalysisSettings settings = new AnalysisSettings();
 
 	String[] plotList = new String[] { "All Particles Scatter Plot", "All Particles Sorted Intensity Plot",
 			"All Particles Green Distribution Plot", "All Particles Red Distribution Plot",
 			"Positive Particles Comparitive Distribution Plot", "Positive Particles Sorted Intensity Plot" };
+	
+
 	ItemListener cbxHandler = new ItemListener() {
 
 		@Override
@@ -200,22 +195,18 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 			switch (cbID) {
 			case CB_SHOW_ROI:
-				IJ.log("CB_SHOW_ROI");
-				if (settings == null) {
-					IJ.log("settings null !!");
-				}
-				if (cbEnabled) {
-					DoShowROI(settings);
-				} else {
-					DoHideROI(settings);
-				}
+				settings.bShowROI = cbEnabled;
+				break;
+			case CB_FILL:
+				settings.bFillROI = cbEnabled;
+				break;
 			}
-			;
-
-		}
-
+			DoShowROI(settings);
+	
+	}
 	};
-
+	
+	
 	@Override
 	/**
 	 * Handler for any button press
@@ -280,7 +271,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 			}
 
 			this.particles.ClassifyParticles();
-			SetRoi(this.particles);
+			this.particles.SetRoi(settings.debug);
 			SetResults(settings);
 			UpdateControlPanel();
 
@@ -312,9 +303,6 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 			break;
 		case "Show ROI":
 			DoShowROI(this.settings);
-			break;
-		case "Hide ROI":
-			DoHideROI(this.settings);
 			break;
 
 		case "Show Selected Plot":
@@ -596,13 +584,14 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	 * calculate various important image values then show the controlling modal dialog
 	 */
 	private void DoDialog() {
-		IJ.log("DoDialog");
+		IJ.log("Begin DoDialog");
 		this.settings = new AnalysisSettings();
 		settings.image = IJ.getImage();
 		settings.win = settings.image.getWindow();
 		settings.canvas = settings.win.getCanvas();
 
 		// set handlers
+		IJ.log("DoDialog: Create results table ");
 		rt = new ResultsTable();
 		rt.show("Results");
 		rt.reset();
@@ -1154,9 +1143,20 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		if (dlg == null) {
 			IJ.log("No dialog");
 		}
-
+		if (!s.bShowROI) {
+			if (s.debug > 0) {
+				IJ.log("Hide ROI");
+			}
+		if (s.overlay != null) {
+			s.overlay.clear();
+			s.image.setOverlay(s.overlay);
+			s.image.repaintWindow();
+			s.image.getWindow().toFront();
+			return;
+		}
+		}
 		/* Get settings for what to show */
-		Vector<Checkbox> cbx = dlg.getCheckboxes();
+		Vector<Checkbox> cbx = (Vector<Checkbox>) dlg.getCheckboxes();
 
 		boolean bRed = cbx.get(CB_REDONLY).getState();
 		boolean bGreen = cbx.get(CB_GREENONLY).getState();
@@ -1185,6 +1185,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		// Get rid of all
 		s.overlay.clear();
 		IJ.log("DoSHowROI - looping through " + particles.size() + " particles");
+		particles.FillROI(s.bFillROI);
 		// Now loop through all ROI figuring out which ones to add
 		for (int i = 0; i < particles.size(); i++) {
 			Particle p = particles.get(i);
@@ -1747,15 +1748,10 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		menu.setFont(f);
 		menu.add("Remove").addActionListener(listener);
 		menu.add("Set as Green Threshold").addActionListener(listener);
-		;
 		menu.add("Set as Red Threshold").addActionListener(listener);
-
 		menu.add("Set BELOW Green Threshold").addActionListener(listener);
-		;
 		menu.add("Set BELOW Red Threshold").addActionListener(listener);
-
 		menu.add("Show Info").addActionListener(listener);
-
 		menu.show(settings.canvas, x, y);
 	}
 
@@ -1819,13 +1815,13 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	 * @param s Current settings
 	 */
 	public void SetResults(AnalysisSettings s) {
-		Roi roi;
+
 		Color roiColor;
-		if (settings.debug > 0) {
-			IJ.log("Getting results - " + particles.size() + " particles");
+		if (s.debug > 0) {
+			IJ.log("Set results - " + particles.size() + " particles");
 		}
 
-		if (settings.debug > 0) {
+		if (s.debug > 0) {
 			IJ.log("Background red: " + s.redBackground + ", green: " + s.greenBackground);
 		}
 		rt = ResultsTable.getResultsTable();
@@ -1844,8 +1840,6 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		rt.reset();
 		for (int i = 0; i < particles.size(); i++) {
 			Particle p = particles.get(i);
-			// Get ROI for this point
-			roi = p.roi;
 
 			rt.incrementCounter();
 			rt.addValue("ID", p.id);
@@ -1864,25 +1858,23 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 			rt.addValue("TotalRawIntDen", p.rawred + p.rawgreen);
 
 			// If this is positive red (ie above threshold )
-			/*
-			 * if (p.IsRedPositive()) { rt.addValue("HasRed", "Yes");
-			 * rt.addValue("redScore", p.red); // Orange ROI if filling and green above
-			 * background if ( p.IsGreenPositive()) { if (s.bFillROI) { roi.setFillColor(new
-			 * Color(255, 140, 0)); } else { roi.setStrokeColor(new Color(255, 140, 0)); } }
-			 * else { // Red with raw green not above greenbackground so this is red only if
-			 * (s.bFillROI) { roi.setFillColor(new Color(255, 0, 0)); } else {
-			 * roi.setStrokeColor(new Color(255, 0, 0)); } } // Otherwise check if raw is
-			 * above bacground (but is not full red) } else { // Not red positive - test if
-			 * also not green rt.addValue("HasRed", "No"); if (!p.IsGreenPositive()) {
-			 * roi.setStrokeColor(Color.magenta); } }
-			 * 
-			 * // Now do green if (p.IsGreenPositive()) { rt.addValue("HasGreen", "Yes");
-			 * rt.addValue("greenScore", p.green); if ( !p.IsRedPositive()) { if
-			 * (s.bFillROI) { roi.setFillColor(new Color(0, 255, 0)); } else {
-			 * roi.setStrokeColor(new Color(0, 255, 0)); } }
-			 * 
-			 * } else { rt.addValue("HasGreen", "No"); }
-			 */
+			
+			  if (p.IsRedPositive()) { 
+				  rt.addValue("HasRed", "Yes");
+				  rt.addValue("redScore", p.red); 
+		      }
+			  else { // Not red positive - test if also not green 
+				  rt.addValue("HasRed", "No");
+				 
+				  }
+			  
+			  // Now do green
+			  if (p.IsGreenPositive()) { 
+				  rt.addValue("HasGreen", "Yes");
+				  rt.addValue("greenScore", p.green); 
+
+			  } else { rt.addValue("HasGreen", "No"); }
+			 
 			rt.addValue("RedMean", p.redmean);
 			rt.addValue("RedStdDev", p.redstdDev);
 			// rt.addValue("RedMeanDiff", p.redmean-settings.redBackgroundMean);
@@ -1898,21 +1890,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 	}
 
-	public void SetRoi(ParticleList pList) {
-		RoiManager rm = RoiManager.getRoiManager();
-		for (int i = 0; i < pList.size(); i++) {
-			Particle p = pList.get(i);
-			if (p == null) {
-				IJ.log("Particle " + i + " is null");
-			} else {
-				p.roi.setName(String.valueOf(p.id));
-				if (settings.debug > 3) {
-					IJ.log("ROI " + i + ": " + p.roi.toString());
-				}
-				rm.addRoi(p.roi);
-			}
-		}
-	}
+
 
 	public void SetSummary() {
 		AnalysisSettings s = this.settings;
@@ -2049,6 +2027,33 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	}
 
 	public void ShowAllChannels() {
+		ImagePlus imp = IJ.getImage();
+        ImageCanvas ic = imp.getCanvas();
+        
+		double curMag = 1;
+		int width=500,height=500;
+        Rectangle srcRect = ic.getSrcRect();
+        IJ.log("Canvas source rect: "+ width+"," +height);
+        Point loc = new Point();
+        loc.x = srcRect.x + srcRect.width/2;
+        loc.y = srcRect.y + srcRect.height/2;
+		if (settings.debug > 0) {
+			IJ.log("ShowAllChannels");
+			  
+		        curMag = ic.getMagnification();
+		        IJ.log("Canvas Mag: "+curMag);
+		        loc = ic.getCursorLoc();
+		        int x = ic.screenX(loc.x);
+		        int y = ic.screenY(loc.y);
+		        IJ.log("Canvas X,Y: "+x+", "+y);
+		        Dimension size = ic.getSize();
+		        width = size.width;
+		        height = size.height;
+
+
+		        IJ.log("Source rectangle: "+srcRect.width+","+srcRect.width+"; x,y: "+srcRect.x+","+srcRect.y);
+		        }
+
 		IJ.run("Make Composite");
 
 		settings.image = IJ.getImage();
@@ -2061,7 +2066,10 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 		// settings.image.setActiveChannels("111");
 		settings.win = settings.image.getWindow();
-		settings.canvas = settings.win.getCanvas();
+		settings.canvas = settings.image.getCanvas();
+		settings.canvas.setMagnification(curMag);
+		settings.canvas.zoomIn(ic.screenX(loc.x), ic.screenY(loc.y));
+		// settings.canvas.setSize(width, height);
 		AddCanvasListener();
 
 	}
