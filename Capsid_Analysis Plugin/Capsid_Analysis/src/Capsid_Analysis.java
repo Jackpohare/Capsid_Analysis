@@ -112,7 +112,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 				SetThresholdFromParticle(p, "red", true);
 				break;
 			case "Show Info":
-				ShowInfo(p);
+				p.ShowInfo();
 				break;
 			case "Add ROI here":
 				DoAddParticle(this.p);
@@ -167,9 +167,9 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 	String sVersion = " (v1.2.10, 14-Dec-2018)";;
 
-	public ResultsTable rt;
+	public ResultsTable2 rt;
 
-	public ResultsTable resultsSummary;
+	public ResultsTable2 resultsSummary;
 
 	public ParticleList particles;
 
@@ -270,8 +270,9 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 						* settings.backgroundDevFactor;
 			}
 
-			this.particles.ClassifyParticles();
+			this.particles.ClassifyParticles(settings);
 			this.particles.SetRoi(settings.debug);
+			this.particles.RankParticles();
 			SetResults(settings);
 			UpdateControlPanel();
 
@@ -285,6 +286,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 				DoShowROI(this.settings);
 			}
 			dlg.setTitle("Capsid Analysis" + sVersion);
+			settings.win.toFront();
 			break;
 
 		case "Delete Empty":
@@ -345,7 +347,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 				offscreenX = settings.canvas.offScreenX(x);
 				offscreenY = settings.canvas.offScreenY(y);
 				GenericDialog gd = new GenericDialog("Options");
-				Particle p = FindRoi(offscreenX, offscreenY);
+				Particle p = particles.FindRoi(offscreenX, offscreenY);
 				String text = "";
 				if (p != null) {
 					roiPopupMenu(p, x, y);
@@ -592,7 +594,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 		// set handlers
 		IJ.log("DoDialog: Create results table ");
-		rt = new ResultsTable();
+		rt = new ResultsTable2();
 		rt.show("Results");
 		rt.reset();
 		setHandlers();
@@ -1036,7 +1038,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		}
 
 		boolean bAscending = gd.getNextBoolean();
-		sorting(nSortCol, bAscending, ResultsTable.getResultsTable());
+		sorting(nSortCol, bAscending, (ResultsTable2)ResultsTable.getResultsTable());
 	}
 
 	private void DoScatterPlot(AnalysisSettings s, boolean bPositivesOnly) {
@@ -1148,6 +1150,9 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 				IJ.log("Hide ROI");
 			}
 		if (s.overlay != null) {
+			if (s.debug > 0) {
+				IJ.log("DoSHowROI - overlay is not null");
+			}
 			s.overlay.clear();
 			s.image.setOverlay(s.overlay);
 			s.image.repaintWindow();
@@ -1336,7 +1341,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 	public void DoSummaryResults() {
 
-		this.resultsSummary = new ResultsTable();
+		this.resultsSummary = new ResultsTable2();
 
 		if (WindowManager.getFrame("Results Summary") != null) {
 			IJ.selectWindow("Results Summary");
@@ -1491,29 +1496,6 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		return GetMaxima();
 	}
 
-	/**
-	 * Given an image x,y co-ordinate, return the Roi if co-ordinates is inside one,
-	 * else return null
-	 * 
-	 * @param x Image x
-	 * @param y Image y
-	 * @return roi containing given point, or none if not contained
-	 */
-	Particle FindRoi(int x, int y) {
-		Particle p = null;
-		if (particles == null) {
-			return null;
-		}
-		// Loop through all ROI and see if given point is inside one - return it if so
-		for (int i = 0; i < particles.size(); i++) {
-			p = particles.get(i);
-			if (p.roi.contains(x, y)) {
-				return p;
-			}
-		}
-
-		return null;
-	}
 
 	int[] GetBackgroundPixels() {
 		int pixel;
@@ -1532,7 +1514,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 		for (int y = 0; y < settings.image.getHeight(); y++) {
 			for (int x = 0; x < width; x++) {
-				if (FindRoi(x, y) == null) {
+				if (particles.FindRoi(x, y) == null) {
 					pixel = pixels[y * width + x]; // proc.getPixel(x, y);
 					pxList.add(pixel);
 				}
@@ -1591,7 +1573,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 				id++;
 			}
 		}
-		IJ.log("Getmaxima - " + rois.length + "rois ");
+		IJ.log("Getmaxima - " + rois.length + " rois");
 		return pList;
 	}
 
@@ -1727,7 +1709,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 	public void RemoveResult(Particle p) {
 		// Find the row with this particle's ID and then remove it from results table
-		ResultsTable rt = ResultsTable.getResultsTable();
+		ResultsTable2 rt = (ResultsTable2)ResultsTable.getResultsTable();
 		for (int i = 0; i < rt.getCounter(); i++) {
 			if ((int) rt.getValueAsDouble(0, i) == p.id) {
 				IJ.log("Deleting row " + i + " from results table");
@@ -1760,6 +1742,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	 * We set up a dialog and everything is then controlled from it
 	 */
 	public void run(String arg) {
+		// IJ.setDebugMode(true);
 		DoDialog();
 	}
 
@@ -1824,7 +1807,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		if (s.debug > 0) {
 			IJ.log("Background red: " + s.redBackground + ", green: " + s.greenBackground);
 		}
-		rt = ResultsTable.getResultsTable();
+		rt = (ResultsTable2) ResultsTable.getResultsTable();
 		s.nRed = 0;
 		s.nGreen = 0;
 		s.nRedNoise = 0;
@@ -1958,7 +1941,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 			}
 
 		}
-		particles.ClassifyParticles();
+		particles.ClassifyParticles(settings);
 		SetResults(settings);
 		UpdateControlPanel();
 
@@ -2026,33 +2009,18 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 	}
 
+	
 	public void ShowAllChannels() {
 		ImagePlus imp = IJ.getImage();
         ImageCanvas ic = imp.getCanvas();
-        
-		double curMag = 1;
-		int width=500,height=500;
-        Rectangle srcRect = ic.getSrcRect();
-        IJ.log("Canvas source rect: "+ width+"," +height);
-        Point loc = new Point();
-        loc.x = srcRect.x + srcRect.width/2;
-        loc.y = srcRect.y + srcRect.height/2;
-		if (settings.debug > 0) {
-			IJ.log("ShowAllChannels");
-			  
-		        curMag = ic.getMagnification();
-		        IJ.log("Canvas Mag: "+curMag);
-		        loc = ic.getCursorLoc();
-		        int x = ic.screenX(loc.x);
-		        int y = ic.screenY(loc.y);
-		        IJ.log("Canvas X,Y: "+x+", "+y);
-		        Dimension size = ic.getSize();
-		        width = size.width;
-		        height = size.height;
-
-
-		        IJ.log("Source rectangle: "+srcRect.width+","+srcRect.width+"; x,y: "+srcRect.x+","+srcRect.y);
-		        }
+        int curHeight = ic.getHeight(), curWidth = ic.getWidth();
+		double curMag = ic.getMagnification();
+		int winWidth = settings.win.getWidth(), winHeight=settings.win.getHeight();
+	
+ 		if (settings.debug > 0) {
+			IJ.log("ShowAllChannels - image details before");
+			utils.LogWindowDetails(settings);
+        }
 
 		IJ.run("Make Composite");
 
@@ -2067,10 +2035,21 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		// settings.image.setActiveChannels("111");
 		settings.win = settings.image.getWindow();
 		settings.canvas = settings.image.getCanvas();
+		if (settings.debug > 0) {
+			IJ.log("Setting canvas mag to "+curMag+"; size= "+curWidth+","+curHeight);
+		}
+		settings.win.setSize(winWidth, winHeight);
+		settings.canvas.setSize(curWidth, curHeight);
 		settings.canvas.setMagnification(curMag);
-		settings.canvas.zoomIn(ic.screenX(loc.x), ic.screenY(loc.y));
+		settings.canvas.zoomIn(0, 0);
 		// settings.canvas.setSize(width, height);
+
 		AddCanvasListener();
+		
+ 		if (settings.debug > 0) {
+			IJ.log("ShowAllChannels - image details after");
+			utils.LogWindowDetails(settings);
+        }
 
 	}
 
@@ -2161,7 +2140,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 		// cp.addCheckbox("Fill ROI", false);
 		// Checkboxes for show/hide ROI and FIll
-		cp.addCheckboxGroup(1, 2, new String[] { "Show ROI", "Fill ROI" }, new boolean[] { true, true });
+		cp.addCheckboxGroup(1, 2, new String[] { "Show ROI", "Fill ROI" }, new boolean[] { false, false });
 
 		cp.addCheckboxGroup(1, 4,
 				new String[] { "Red Only (____)", "Green Only (____)", "Both (_____)", "Empty (____)" },
@@ -2222,47 +2201,6 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		AddCanvasListener();
 	}
 
-	public void ShowInfo(Particle p) {
-
-		Frame f = WindowManager.getFrame("ROI Info");
-		ResultsTable rt = new ResultsTable();
-
-		if (WindowManager.getFrame("ROI Info") != null) {
-			IJ.selectWindow("ROI Info");
-			IJ.run("Close");
-		}
-
-		String[] Labels = { "ID", "Status", "x", "y", "Red Intensity", "Red Mean", "Red StdDev", "% of max red",
-				"Red Ranking", "#Reds below this", "Green Intensity", "Green Mean", "Green StdDev", "% of max green",
-				"Green Ranking", "#Greens below this" };
-
-		String[] Values = { "" + p.id, p.GetStatus(), String.valueOf(p.x), String.valueOf(p.y),
-				String.format("%.0f", p.rawred), String.format("%.1f", p.redmean), String.format("%.1f", p.redstdDev),
-				String.format("%.1f", p.redPct), "" + p.redRank, "" + p.redBelow, String.format("%.0f", p.rawgreen),
-				String.format("%.1f", p.greenmean), String.format("%.1f", p.greenstdDev),
-				String.format("%.1f", p.greenPct), "" + p.greenRank, "" + p.greenBelow, };
-		String[] background = { "", "", "", "", String.format("%.0f", settings.redBackground),
-				String.format("%.1f", settings.redBackgroundMean), String.format("%.1f", settings.redBackgroundStdDev),
-				"", "", "", String.format("%.0f", settings.greenBackground),
-				String.format("%.1f", settings.greenBackgroundMean),
-				String.format("%.1f", settings.greenBackgroundStdDev), "", "", "" };
-
-		for (int i = 0; i < Labels.length; i++) {
-			rt.incrementCounter();
-			rt.addValue("ROI", Values[i]);
-			rt.addValue("Background", background[i]);
-			rt.addLabel(Labels[i]);
-		}
-
-		rt.showRowNumbers(false);
-		rt.show("ROI Info");
-		if (f == null) {
-			f = WindowManager.getFrame("ROI Info");
-			f.setSize(400, 600);
-			f.toFront();
-		}
-
-	}
 
 	public void ShowRedChannel() {
 		// Get current magnification
@@ -2292,7 +2230,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		AddCanvasListener();
 	}
 
-	public void sorting(int nSortingColumn, boolean bAscending, ResultsTable rt) {
+	public void sorting(int nSortingColumn, boolean bAscending, ResultsTable2 rt) {
 		IJ.log("Sorting Results Table: Preparation...");
 
 		int[] stringCols = { 1 };

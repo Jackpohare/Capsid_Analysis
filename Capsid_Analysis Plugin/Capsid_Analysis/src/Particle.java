@@ -1,16 +1,19 @@
 import java.awt.Color;
+import java.awt.Frame;
 import java.awt.Rectangle;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.List;
 
 import ij.IJ;
+import ij.WindowManager;
 import ij.gui.OvalRoi;
 import ij.gui.Roi;
+import ij.measure.ResultsTable;
 import ij.process.ImageProcessor;
 
 public class Particle {
-	static AnalysisSettings settings;
+	public static AnalysisSettings settings;
 	Roi roi; // Actual Roi
 	double x, y; // Maxima point
 	/**
@@ -230,10 +233,64 @@ public class Particle {
 
 	/**
 	 * @param rank Red rank to be set for this particle
+	 * @param below Number of red particles below this one
 	 */
-	public void setRedRank(int rank) {
+	public void setRedRank(int rank, int below) {
 		this.redRank = rank;
+		this.redBelow = below;
 
+	}
+
+	/**
+	 * @param rank Green rank to be set for this particle
+	 * @param below Number of green particles below this one
+	 */
+	public void setGreenRank(int rank, int below) {
+		this.greenRank = rank;
+		this.greenBelow = below;
+
+	}
+	public void ShowInfo() {
+		ResultsTable rt = new ResultsTable();
+		/* if (WindowManager.getWindow("ROI Info") !=null ) {
+			 WindowManager.getWindow("ROI Info").dispose();
+		 } */
+
+
+		String[] Labels = { "ID", "Status", "x", "y", 
+				"Red Intensity", "Red Mean", "Red StdDev", 
+				"% of max red",
+				"% of red threshold",
+				"Red Ranking", "#Reds below this", 
+				"Green Intensity", "Green Mean", "Green StdDev", "% of max green",
+				"% of green threshold",
+				"Green Ranking", "#Greens below this" };
+
+		String[] Values = { "" + id, GetStatus(), String.valueOf(x), String.valueOf(y), String.format("%.0f", rawred),
+				String.format("%.1f", redmean), String.format("%.1f", redstdDev), String.format("%.1f", redPct),
+				String.format("%.1f", redmean/settings.redThreshold*100.0),
+				"" + redRank, "" + redBelow, String.format("%.0f", rawgreen), String.format("%.1f", greenmean),
+				String.format("%.1f", greenstdDev), String.format("%.1f", greenPct), 
+				String.format("%.1f", greenmean/settings.greenThreshold*100.0),
+				"" + greenRank, "" + greenBelow, };
+		String[] background = { "", "", "", "", 
+				String.format("%.0f", settings.redBackground),String.format("%.1f", settings.redBackgroundMean), String.format("%.1f", settings.redBackgroundStdDev),
+				"", "", "", "",
+				String.format("%.0f", settings.greenBackground),
+				String.format("%.1f", settings.greenBackgroundMean),
+				String.format("%.1f", settings.greenBackgroundStdDev), "", "", "","" };
+
+		for (int i = 0; i < Labels.length; i++) {
+			rt.incrementCounter();
+			rt.addValue("ROI", Values[i]);
+			rt.addValue("Background", background[i]);
+			rt.addLabel(Labels[i]);
+		}
+
+		rt.showRowNumbers(false);
+		rt.show("ROI Info");
+		WindowManager.getFrame("ROI Info").setSize(400, 600);
+		WindowManager.getFrame("ROI Info").toFront();
 	}
 
 	public void UpdateROI(boolean bFill) {

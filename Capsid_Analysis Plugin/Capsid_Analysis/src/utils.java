@@ -10,6 +10,9 @@ import org.jfree.ui.Layer;
 import org.jfree.ui.TextAnchor;
 
 import ij.IJ;
+import ij.ImagePlus;
+import ij.gui.ImageCanvas;
+import ij.gui.ImageWindow;
 import ij.measure.CurveFitter;
 
 final public class utils {
@@ -83,6 +86,20 @@ final public class utils {
 
 		return cf;
 	}
+	
+	/**
+	 * Return true is given string is parseable to double
+	 * @param str
+	 * @return true iff given string is parseable to double
+	 */
+	  static boolean isDouble(String str) {
+	        try {
+	            Double.parseDouble(str);
+	            return true;
+	        } catch (NumberFormatException e) {
+	            return false;
+	        }
+	    }
 
 	/**
 	 * @param bucketWidth Width of each bucket in the distribution
@@ -188,6 +205,26 @@ final public class utils {
 		return q3 - q1;
 	}
 
+	static public void LogWindowDetails(AnalysisSettings settings) { 
+		ImagePlus ip =settings.image;
+		ImageCanvas ic = settings.canvas;
+		ImageWindow iw = settings.win;
+		
+		String s = String.format("Window: %s (%d stack)\n"
+				+"Image width,height:  %d, %d\n"
+				+"Window width,height: %d, %d\n"
+				+"Canvas width,height: %d, %d;  Mag: %f\n"
+				+"Canvas size:         %d, %d\n",
+				iw.getTitle(), ip.getStackSize(),
+				ip.getWidth(),ip.getHeight(),
+				iw.getWidth(),iw.getHeight(),
+				ic.getWidth(),ic.getHeight(),ic.getMagnification(),
+				ic.getSize().width,ic.getSize().height
+				);
+		IJ.log(s);
+	}
+	
+	
 	static public double Max(double[] array) {
 		double max = 0;
 		for (int i = 0; i < array.length; i++) {
