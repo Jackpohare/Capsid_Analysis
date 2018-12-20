@@ -2,7 +2,6 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
 
 import ij.IJ;
 import ij.gui.Roi;
@@ -189,7 +188,7 @@ public class ParticleList extends ArrayList<Particle> {
 	 * @return Returns array of green intensity values for selected set of particles
 	 */
 	double[] GetGreen(boolean bAll) {
-		ParticleList posList = (ParticleList) new ArrayList<Particle>();
+		ParticleList posList = (ParticleList) new ParticleList();
 		for (int i = 0; i < this.size(); i++) {
 			Particle p = this.get(i);
 			if (p.IsGreenPositive() || bAll) {
@@ -239,7 +238,7 @@ public class ParticleList extends ArrayList<Particle> {
 	}
 
 	double[] GetNegGreen() {
-		ParticleList posList = (ParticleList) new ArrayList<Particle>();
+		ParticleList posList = new ParticleList();
 		for (int i = 0; i < this.size(); i++) {
 			Particle p = this.get(i);
 			if (!p.IsGreenPositive()) {
@@ -247,11 +246,11 @@ public class ParticleList extends ArrayList<Particle> {
 			}
 		}
 
-		return GetArrayFromList("greenval");
+		return posList.GetArrayFromList("greenval");
 	}
 
 	double[] GetNegRed() {
-		ParticleList posList = (ParticleList) new ArrayList<Particle>();
+		ParticleList posList = new ParticleList();
 		for (int i = 0; i < this.size(); i++) {
 			Particle p = this.get(i);
 			if (!p.IsRedPositive()) {
@@ -259,11 +258,11 @@ public class ParticleList extends ArrayList<Particle> {
 			}
 		}
 
-		return GetArrayFromList("redval");
+		return posList.GetArrayFromList("redval");
 	}
 
 	double[] GetPosGreen() {
-		ParticleList posList = (ParticleList) new ArrayList<Particle>();
+		ParticleList posList = new ParticleList();
 		for (int i = 0; i < this.size(); i++) {
 			Particle p = this.get(i);
 			if (p.IsRedPositive()) {
@@ -271,7 +270,7 @@ public class ParticleList extends ArrayList<Particle> {
 			}
 		}
 
-		return GetArrayFromList("greenval");
+		return posList.GetArrayFromList("greenval");
 	}
 
 	double[] GetPosRed() {
@@ -280,7 +279,7 @@ public class ParticleList extends ArrayList<Particle> {
 	}
 
 	public ParticleList GetPosRedList() {
-		ParticleList posList = (ParticleList) new ArrayList<Particle>();
+		ParticleList posList = new ParticleList();
 		for (int i = 0; i < this.size(); i++) {
 			Particle p = this.get(i);
 			if (p.IsRedPositive()) {
@@ -301,7 +300,7 @@ public class ParticleList extends ArrayList<Particle> {
 	 * @return Returns array of red intensity values for selected set of particles
 	 */
 	double[] GetRed(boolean bAll) {
-		ParticleList posList = (ParticleList) new ArrayList<Particle>();
+		ParticleList posList = new ParticleList();
 		for (int i = 0; i < this.size(); i++) {
 			Particle p = this.get(i);
 			if (p.IsRedPositive() || bAll) {
@@ -335,7 +334,7 @@ public class ParticleList extends ArrayList<Particle> {
 
 	public ParticleList Merge(ParticleList green, AnalysisSettings settings) {
 		IJ.log("Merge " + this.size() + " red and " + green.size() + " green");
-		ParticleList roiList = (ParticleList) new ArrayList<Particle>();
+		ParticleList roiList = new ParticleList();
 
 		// Loop through all reds, looking for overlapping green and create a new merged
 		// Roi which gets added to list

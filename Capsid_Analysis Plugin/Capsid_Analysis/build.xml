@@ -25,5 +25,6 @@
     <copy file="Capsid_Analysis.jar" toDir="${pluginsDir}" />
  	<copy file="Capsid_Analysis.jar" toDir="$basedir/../../../Fiji.app/plugins" />
  	<copy file="Capsid_Analysis.jar" toDir="/Users/jackp/Fiji.app/plugins" />
+ 	<copy file="Capsid_Analysis.jar" toDir="/Users/jackp/eclipse-workspace/IJ/plugins" />
   </target>
 </project>

@@ -16,35 +16,7 @@ import ij.gui.ImageWindow;
 import ij.measure.CurveFitter;
 
 final public class utils {
-	static void AddMarkers(XYPlot plot, double mean, double stdDev, double fittedMean, double fittedStdDev,
-			double fittedGoodness) {
 
-		double maxValue = plot.getRangeAxis().getUpperBound();
-		double lowerBound = plot.getDomainAxis().getLowerBound();
-		double[] markerValues = { mean, mean - stdDev, mean + stdDev, mean - (stdDev * 2), mean + (stdDev * 2) };
-		float[] dashes = { 10, 5, 5, 3, 3, 1, 1 };
-		for (int i = 0; i < markerValues.length; i++) {
-			ValueMarker marker = new ValueMarker(markerValues[i]); // position is the value on the axis
-			float[] dash = { dashes[i] };
-			marker.setStroke(new BasicStroke(2.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 1.0f, dash, 0.0f));
-			plot.addDomainMarker(marker, Layer.FOREGROUND);
-		}
-
-		BasicMultiLineXYTextAnnotation newLabel = new BasicMultiLineXYTextAnnotation(
-				"Observed Mean: " + String.format("%.2f", mean) + "\nObserved StdDev: " + String.format("%.2f", stdDev)
-						+ "\nCV: " + String.format("%.2f", stdDev / mean * 100.0),
-				lowerBound + 170, maxValue * 0.8);
-		newLabel.setFont(new Font("Arial", Font.BOLD, 12));
-		newLabel.setTextAnchor(TextAnchor.TOP_LEFT);
-		plot.addAnnotation(newLabel);
-		newLabel = new BasicMultiLineXYTextAnnotation("Fitted Mean: " + String.format("%.2f", fittedMean)
-				+ "\nFitted StdDev: " + String.format("%.2f", fittedStdDev) + "\nFit Goodness: "
-				+ String.format("%.2f", fittedGoodness), 20 + lowerBound, maxValue * 0.8);
-		newLabel.setFont(new Font("Arial", Font.BOLD, 12));
-		newLabel.setTextAnchor(TextAnchor.TOP_LEFT);
-		plot.addAnnotation(newLabel);
-
-	}
 
 	static CurveFitter GetFit(double[] x, double[] y, String key, DefaultXYDataset xyData, int debug) {
 

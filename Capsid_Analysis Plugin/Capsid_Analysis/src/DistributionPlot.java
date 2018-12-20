@@ -1,10 +1,7 @@
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Font;
 import java.util.Arrays;
-
-import javax.swing.JSlider;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 
 import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.labels.XYToolTipGenerator;
@@ -20,6 +17,7 @@ import org.jfree.data.xy.XYDataset;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 import org.jfree.ui.Layer;
+import org.jfree.ui.TextAnchor;
 
 import ij.IJ;
 import ij.measure.CurveFitter;
@@ -34,7 +32,22 @@ public class DistributionPlot {
 	private String _key = "";
 	private double _binWidth;
 	private boolean _bAddFit = false;
+	private double[] fitParams;
 
+	private int countOverThreshold;
+
+	private int countUnderThreshold;
+
+	/**
+	 * Distribution plot constructor
+	 * 
+	 * @param s         Settings to be used for threshold etc
+	 * @param key       Title string
+	 * @param color     Colour to use for drawing histogram
+	 * @param values    Data (mean intensity values)
+	 * @param threshold Threshold value to draw a vertical range marker at
+	 * @param bAddFit   Add a fit to the data and overaly on chart
+	 */
 	public DistributionPlot(AnalysisSettings s, String key, Color color, double[] values, double threshold,
 			boolean bAddFit) {
 		this.settings = s;
@@ -45,7 +58,87 @@ public class DistributionPlot {
 		this._bAddFit = bAddFit;
 		this.setThreshold(threshold);
 	}
+	
+	public  void AddMarkers( double mean, double stdDev, double fittedMean, double fittedStdDev, double fittedGoodness, String txtBeforeObserved) {
+		AddMarkers(this._plot , mean,  stdDev,  fittedMean,  fittedStdDev,  fittedGoodness, txtBeforeObserved);
+	}
+	/**
+	 * Add Markers lines for mean and S.D. and add observed data and fit mean and
+	 * S.D. details to plot
+	 * 
+	 * @param mean
+	 * @param stdDev
+	 * @param fittedMean
+	 * @param fittedStdDev
+	 * @param fittedGoodness
+	 */
+	public static  void AddMarkers(XYPlot plot, double mean, double stdDev, double fittedMean, double fittedStdDev, double fittedGoodness, String txtBeforeObserved) {
 
+		double maxValue = plot.getRangeAxis().getUpperBound();
+		double lowerBound = plot.getDomainAxis().getLowerBound();
+		double[] markerValues = { mean, mean - stdDev, mean + stdDev, mean - (stdDev * 2), mean + (stdDev * 2) };
+		float[] dashes = { 10, 5, 5, 3, 3, 1, 1 };
+		for (int i = 0; i < markerValues.length; i++) {
+			ValueMarker marker = new ValueMarker(markerValues[i]); // position is the value on the axis
+			float[] dash = { dashes[i] };
+			marker.setStroke(new BasicStroke(2.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 1.0f, dash, 0.0f));
+			plot.addDomainMarker(marker, Layer.FOREGROUND);
+		}
+
+		String str = "Observed Mean (\u03bc): " + String.format("%.2f", mean) + "\nObserved StdDev (\u03b4): " + String.format("%.2f", stdDev)
+		+ "\nCV: " + String.format("%.2f", stdDev / mean * 100.0);
+		if (txtBeforeObserved != null ) {
+			str = txtBeforeObserved + str;
+		}
+		AddTextLabel(plot, str,
+				lowerBound + 170, maxValue * 0.8);
+		
+		AddTextLabel(plot, "Fitted Mean: " + String.format("%.2f", fittedMean)
+				+ "\nFitted StdDev: " + String.format("%.2f", fittedStdDev) + "\nFit Goodness: "
+				+ String.format("%.2f", fittedGoodness), 170 + lowerBound, maxValue * 0.5);
+		
+		AddTextLabel(plot, "\u03bc", mean,maxValue*0.98);
+		AddTextLabel(plot, "+\u03b4", mean+stdDev,maxValue*0.98);
+		AddTextLabel(plot, "-\u03b4", mean-stdDev,maxValue*0.98);
+	}
+	
+	public static void AddTextLabel(XYPlot plot, String label, double x,double y) {
+
+		BasicMultiLineXYTextAnnotation newLabel = new BasicMultiLineXYTextAnnotation(label, x,y);
+		newLabel.setFont(new Font("Arial", Font.BOLD, 12));
+		newLabel.setTextAnchor(TextAnchor.TOP_LEFT);
+		plot.addAnnotation(newLabel);
+
+	}
+
+	public void DoFit(double[] Bins, double[] Counts, double[] values, String txtBefore) {
+		DefaultXYDataset xyFitDataSet = new DefaultXYDataset();
+
+		CurveFitter cf = utils.GetFit(Bins, Counts, this._key + " (fit)", xyFitDataSet, settings.debug);
+		this._plot.setDataset(2, xyFitDataSet);
+		// and get rendered to draw it as a line with no shapes
+		final XYLineAndShapeRenderer fitRenderer = new XYLineAndShapeRenderer(true, false);
+		fitRenderer.setSeriesPaint(0,
+				new Color(this._color.getRed(), this._color.getGreen(), this._color.getBlue(), 255));
+		this._plot.setRenderer(2, fitRenderer);
+
+		fitParams = cf.getParams();
+
+		this._plot.clearAnnotations();
+		AddMarkers(utils.Mean(values), utils.StdDev(values, utils.Mean(values)), fitParams[2], fitParams[3],
+				cf.getFitGoodness(), txtBefore);
+
+		this._plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
+	}
+
+	/**
+	 * Draws this plot using the given data for bins and counts
+	 * 
+	 * @param BinBottoms
+	 * @param Counts
+	 * @param CountsBelowThreshold
+	 * @param values
+	 */
 	public void drawPlot(double[] BinBottoms, double[] Counts, double[] CountsBelowThreshold, double[] values) {
 		double[] Bins = new double[BinBottoms.length];
 		for (int i = 0; i < Bins.length - 1; i++) {
@@ -54,7 +147,7 @@ public class DistributionPlot {
 		Bins[Bins.length - 1] = BinBottoms[Bins.length - 1]
 				+ (BinBottoms[Bins.length - 1] - BinBottoms[Bins.length - 2]) / 2;
 
-		if (settings.debug > 0) {
+		if (IJ.debugMode ) {
 			IJ.log("\n" + this.getClass().getSimpleName() + " drawPlot\nBins length: " + Bins.length
 					+ "\nCOunts length:" + Counts.length);
 		}
@@ -66,9 +159,9 @@ public class DistributionPlot {
 				StringBuilder stringBuilder = new StringBuilder();
 				stringBuilder
 						.append(String.format("<html><p style='color:#0000ff;'>%s</p>", dataset.getSeriesKey(series)));
-				stringBuilder.append(String.format("Mean Range:%.1f - %.1f<br/>", x1.intValue() - _binWidth / 2,
-						x1.intValue() + _binWidth / 2));
-				stringBuilder.append(String.format("ROI COunt: '%d'", y1.intValue()));
+				stringBuilder.append(String.format("Mean Range:%.1f - %.1f<br/>", x1.doubleValue() - (_binWidth / 2),
+						x1.doubleValue() + (_binWidth / 2)));
+				stringBuilder.append(String.format("ROI COunt: %d", y1.intValue()));
 				stringBuilder.append("</html>");
 				return stringBuilder.toString();
 			}
@@ -85,8 +178,8 @@ public class DistributionPlot {
 					StringBuilder stringBuilder = new StringBuilder();
 					stringBuilder.append(
 							String.format("<html><p style='color:#0000ff;'>%s</p>", dataset.getSeriesKey(series)));
-					stringBuilder.append(String.format("Range:%.1f - %.1f<br/>", x1.intValue() - _binWidth / 2,
-							x1.intValue() + _binWidth / 2));
+					stringBuilder.append(String.format("Range:%.1f - %.1f<br/>", x1.doubleValue() - (_binWidth / 2),
+							x1.doubleValue() + (_binWidth / 2)));
 					stringBuilder.append(String.format("Count: %d", y1.intValue()));
 					stringBuilder.append("</html>");
 					return stringBuilder.toString();
@@ -136,7 +229,7 @@ public class DistributionPlot {
 		this._plot.setDataset(1, dataset2);
 		this._plot.setRenderer(0, renderer);
 
-		if (settings.debug > 0) {
+		if (IJ.debugMode) {
 			renderer = (XYBarRenderer) this._plot.getRenderer(0);
 			IJ.log("\nRenderer 1\nMargin: " + renderer.getMargin());
 		}
@@ -165,36 +258,28 @@ public class DistributionPlot {
 		Marker.setPaint(this._color);
 		this._plot.addDomainMarker(Marker, Layer.FOREGROUND);
 
-		// Make sure range axis goes from zero
+		
+
+		// Make sure range axis goes from zero to highest value for the two axes
 		this._plot.getRangeAxis(0).setLowerBound(0);
-		// Now adjust count of ROI below axis - if it is smaller than count of ROI
+		// Now adjust count of ROI below threshold - if it is smaller than count of ROI
 		// above, we set it the same
 		double upper = this._plot.getRangeAxis(0).getUpperBound();
-		if (upper > this._plot.getRangeAxis(1).getUpperBound()) {
+	
+		if (upper > this._plot.getRangeAxis(1).getUpperBound() ||
+				upper > this._plot.getRangeAxis(0).getUpperBound()) {
 			this._plot.getRangeAxis(1).setUpperBound(upper);
+		
 		}
 
 		// Make sure x axis starts at zero
 		this._plot.getDomainAxis().setLowerBound(0);
-
+		// Add a fitted curve (gaussian) if required on this histogram plot
 		if (this._bAddFit) {
-			DefaultXYDataset xyFitDataSet = new DefaultXYDataset();
-			;
-			CurveFitter cf = utils.GetFit(Bins, Counts, this._key + " (fit)", xyFitDataSet, settings.debug);
-			this._plot.setDataset(2, xyFitDataSet);
-			// and get rendered to draw it as a line with no shapes
-			final XYLineAndShapeRenderer fitRenderer = new XYLineAndShapeRenderer(true, false);
-			fitRenderer.setSeriesPaint(0,
-					new Color(this._color.getRed(), this._color.getGreen(), this._color.getBlue(), 255));
-			this._plot.setRenderer(2, fitRenderer);
-
-			double[] params = cf.getParams();
-			this._plot.clearAnnotations();
-			utils.AddMarkers(this._plot, utils.Mean(values), utils.StdDev(values, utils.Mean(values)), params[2],
-					params[3], cf.getFitGoodness());
-
-			this._plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
+			DoFit(Bins, Counts, values, "Total # of particles: "+this._sortedValues.length+"\nTotal over threshold: "+this.countOverThreshold
+					+"\nTotal under threshold: "+this.countUnderThreshold+"\n \n");
 		}
+		
 
 	}
 
@@ -202,6 +287,7 @@ public class DistributionPlot {
 	public double[] GetBins() {
 
 		this._binWidth = getBinWidth();
+		settings.binField.setValue(this._binWidth);
 		// Number of bins
 		int nBinCount = (int) (255.0 / this._binWidth + 1);
 		// We have to make sure the threshold is the start of a bin, so work out offset
@@ -209,7 +295,7 @@ public class DistributionPlot {
 		double offset = this._binWidth - (this._threshold % this._binWidth);
 
 		double[] Bins = new double[nBinCount];
-		if (settings.debug > 0) {
+		if (IJ.debugMode ) {
 			IJ.log(this.getClass().getSimpleName() + " GetBins bins length :" + Bins.length + "\nBin width = "
 					+ this._binWidth + ", Offset = " + offset);
 		}
@@ -221,13 +307,20 @@ public class DistributionPlot {
 
 	}
 
+	/**
+	 * Used Freedman-Draconis
+	 * (https://en.wikipedia.org/wiki/Freedman%E2%80%93Diaconis_rule) to get bin
+	 * width
+	 * 
+	 * @return binWidth to be used for frequency histograms
+	 */
 	public double getBinWidth() {
 		// Get the values that are above current threshold
 		int start = utils.getIndexOf(this._sortedValues, this._threshold);
 		double[] positives = Arrays.copyOfRange(this._sortedValues, start, this._sortedValues.length - 1);
 		double iqr = utils.quantile(positives, 0.75) - utils.quantile(positives, 0.25);
 
-		if (settings.debug > 0) {
+		if (IJ.debugMode) {
 			IJ.log("getBinWidth: threshold = " + this._threshold + ", start index =" + start
 					+ ", above threshold count =" + positives.length);
 			IJ.log("Q3 = " + utils.quantile(positives, 0.75) + ", Q1=" + utils.quantile(positives, 0.25));
@@ -237,43 +330,65 @@ public class DistributionPlot {
 		return 2 * iqr / Math.pow(positives.length, 1.0 / 3);
 	}
 
-	public double[] GetCounts(double[] Bins, boolean overThreshold) {
-		if (settings.debug > 0) {
-			IJ.log("\n" + this.getClass().getSimpleName() + " GetCounts bins length :" + Bins.length);
+	/**
+	 * Returns the correct bin number for the given value for the givens bins
+	 * @param Bins
+	 * @param value
+	 * @return
+	 */
+	public int GetBinForValue(double []Bins, double value) {
+
+		for(int i=0; i<Bins.length; i++) {
+			if (value<Bins[i]  ) {
+			return i;
+			}
+		}
+		return Bins.length - 1;
+	}
+	/**
+	 * Returns counts of particles over or under given threshold using given bins
+	 * 
+	 * @param Bins          Bin ranges (Bins[0]<=particles value <= Bins[1] etc...)
+	 * @param overThreshold false if counting particles under threshold
+	 * @return
+	 */
+	public double[] GetCounts(double[] Bins, boolean bOverThreshold) {
+		if (IJ.debugMode) {
+			IJ.log("\n" + this.getClass().getSimpleName() + " GetCounts " +(bOverThreshold?"over":"under")+" threshold bins length :" + Bins.length);
 		}
 		double[] counts = new double[Bins.length];
 		int i;
 		for (i = 0; i < counts.length; i++) {
 			counts[i] = 0;
 		}
-		int nBin = 0;
-		double binTop = Bins[nBin + 1];
+		this.countOverThreshold = 0;
+		this.countUnderThreshold = 0;
 
 		for (i = 0; i < this._sortedValues.length; i++) {
-			if (!overThreshold && _sortedValues[i] >= this._threshold) {
+			double value = this._sortedValues[i];
+			if ( value >= this._threshold) {
+				this.countOverThreshold++;
+				IJ.log("sortedValues[" +i+"] = "+value+" over threshold: "+this.countOverThreshold);
+			} else {
+				this.countUnderThreshold++;
+				IJ.log("sortedValues[" +i+"] = "+value+" under threshold: "+this.countUnderThreshold);
+			}
+			
+			if (!bOverThreshold && _sortedValues[i] >= this._threshold) {
+				IJ.log("Break");
 				break;
 			}
-
-			if (_sortedValues[i] >= binTop) {
-				i--;
-				nBin++;
-				if (nBin < Bins.length - 1) {
-					binTop = Bins[nBin + 1];
-				} else {
-					binTop = Double.MAX_VALUE;
-				}
-			} else if (overThreshold) {
-				if (_sortedValues[i] >= this._threshold) {
-					counts[nBin]++;
-				}
-			} else {
+			int nBin = GetBinForValue(Bins, value);
+			if (bOverThreshold && value >= this._threshold) {
+				counts[nBin]++;
+			} else  if ( !bOverThreshold && value < this._threshold ) {
 				counts[nBin]++;
 			}
 		}
 
 		if (settings.debug >= 3) {
 			for (int j = 0; j < Bins.length; j++) {
-				IJ.log(j + "," + Bins[j] + "," + counts[j]);
+				IJ.log("Bin " + j + ": " + Bins[j] + "," + counts[j]);
 			}
 		}
 
@@ -284,11 +399,17 @@ public class DistributionPlot {
 		return this._plot;
 	}
 
+	/**
+	 * Add a vertical marker for the given threshold then draw the plot
+	 * 
+	 * @param threshold THe threshold value at which to draw marker
+	 */
 	public void setThreshold(double threshold) {
 		this._threshold = threshold;
 		double[] Bins = GetBins();
-		double[] Counts = GetCounts(Bins, true);
 		double[] CountsBelowThreshold = GetCounts(Bins, false);
+		double[] Counts = GetCounts(Bins, true);
+
 		if (this._plot != null) {
 			this._plot.clearDomainMarkers();
 		}

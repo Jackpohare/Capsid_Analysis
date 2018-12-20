@@ -1,9 +1,7 @@
 import java.awt.Color;
-import java.awt.Frame;
 import java.awt.Rectangle;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.List;
 
 import ij.IJ;
 import ij.WindowManager;

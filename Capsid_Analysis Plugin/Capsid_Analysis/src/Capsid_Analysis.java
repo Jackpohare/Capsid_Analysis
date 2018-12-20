@@ -8,7 +8,6 @@ import java.awt.Font;
 import java.awt.Frame;
 import java.awt.Panel;
 import java.awt.Point;
-import java.awt.Rectangle;
 import java.awt.TextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -25,12 +24,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Vector;
 
+import javax.swing.JFormattedTextField;
 import javax.swing.JPopupMenu;
 
 import org.jfree.chart.ChartFactory;
@@ -49,7 +48,6 @@ import org.jfree.chart.title.TextTitle;
 import org.jfree.data.xy.DefaultXYDataset;
 import org.jfree.data.xy.IntervalXYDataset;
 import org.jfree.data.xy.XYBarDataset;
-import org.jfree.data.xy.XYSeries;
 import org.jfree.ui.Layer;
 import org.jfree.ui.RectangleEdge;
 import org.jfree.ui.VerticalAlignment;
@@ -63,7 +61,6 @@ import ij.gui.ImageCanvas;
 import ij.gui.NonBlockingGenericDialog;
 import ij.gui.Overlay;
 import ij.gui.Plot;
-import ij.gui.PlotWindow;
 import ij.gui.Roi;
 // import ij.gui.*;
 import ij.measure.CurveFitter;
@@ -121,37 +118,6 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		}
 	}
 
-	class tableComparator implements Comparator<String[]> {
-		private int columnToSortOn;
-		private boolean ascending;
-		private int[] stringCols;
-
-		// contructor to set the column to sort on.
-		tableComparator(int columnToSortOn, boolean ascending, int[] stringCols) {
-			this.columnToSortOn = columnToSortOn;
-			this.ascending = ascending;
-			this.stringCols = stringCols;
-		}
-
-		// Implement the abstract method which tells
-		// how to order the two elements in the array.
-		public int compare(String[] o1, String[] o2) {
-			String[] row1 = (String[]) o1;
-			String[] row2 = (String[]) o2;
-			int res;
-			if (Double.parseDouble(row1[columnToSortOn]) == Double.parseDouble(row2[columnToSortOn]))
-				return 0;
-			if (Double.parseDouble(row1[columnToSortOn]) > Double.parseDouble(row2[columnToSortOn]))
-				res = 1;
-			else
-				res = -1;
-			if (ascending)
-				return res;
-			else
-				return (-1) * res;
-
-		}
-	}
 
 	// constants
 	protected static final int CB_SHOW_ROI = 1, CB_FILL = 2, CB_GREYSCALE = 0, CB_REDONLY = 3;
@@ -165,7 +131,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 	public static NonBlockingGenericDialog dlg;
 
-	String sVersion = " (v1.2.10, 14-Dec-2018)";;
+	String sVersion = " (v1.2.11, 16-Dec-2018)";;
 
 	public ResultsTable2 rt;
 
@@ -179,6 +145,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 			"All Particles Green Distribution Plot", "All Particles Red Distribution Plot",
 			"Positive Particles Comparitive Distribution Plot", "Positive Particles Sorted Intensity Plot" };
 	
+
 
 	ItemListener cbxHandler = new ItemListener() {
 
@@ -586,7 +553,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	 * calculate various important image values then show the controlling modal dialog
 	 */
 	private void DoDialog() {
-		IJ.log("Begin DoDialog");
+		if (IJ.debugMode) {IJ.log("Capsid: Begin DoDialog"); }
 		this.settings = new AnalysisSettings();
 		settings.image = IJ.getImage();
 		settings.win = settings.image.getWindow();
@@ -1742,11 +1709,13 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	 * We set up a dialog and everything is then controlled from it
 	 */
 	public void run(String arg) {
-		// IJ.setDebugMode(true);
+		IJ.setDebugMode(true);
 		DoDialog();
+		if (IJ.debugMode) {IJ.log("Capsid: Dialog done");}
 	}
 
 	public void setHandlers() {
+		if (IJ.debugMode) {IJ.log("Capsid: setHandlers");}
 		final TextWindow window = (TextWindow) WindowManager.getWindow("Results");
 		final TextPanel textPanel = window.getTextPanel();
 		textPanel.addMouseListener(new MouseListener() {
@@ -2160,6 +2129,12 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		cp.addChoice("Select a plot :", plotList, plotList[0]);
 
 		pnl = new Panel();
+		Checkbox c1 = new Checkbox("Auto bin", true);
+		pnl.add(c1);
+		settings.binField = new JFormattedTextField(NumberFormat.getNumberInstance());
+		settings.binField.setColumns(6);
+		settings.binField.setEditable(false);
+		pnl.add(settings.binField);
 		bt = new Button("Show Selected Plot");
 		bt.addActionListener(this);
 		pnl.add(bt);
@@ -2178,8 +2153,9 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		cp.repaint();
 
 		this.dlg = cp;
-		cp.setAlwaysOnTop(true);
+		cp.setAlwaysOnTop(false);
 		cp.setUndecorated(false);
+		if (IJ.debugMode) { IJ.log("Capsid: Showing dialog control panel"); }
 		cp.showDialog();
 	}
 
@@ -2231,6 +2207,11 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	}
 
 	public void sorting(int nSortingColumn, boolean bAscending, ResultsTable2 rt) {
+		IJ.log("!!Doing sort from capsid");
+		rt.sort("Status");
+	}
+	
+/*	public void sortingxx(int nSortingColumn, boolean bAscending, ResultsTable2 rt) {
 		IJ.log("Sorting Results Table: Preparation...");
 
 		int[] stringCols = { 1 };
@@ -2301,7 +2282,11 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 			IJ.log("Could not get tesults text panel");
 		}
 	}
+*/
 
+	/**
+	 * Updates dialog to match current settings
+	 */
 	public void UpdateControlPanel() {
 		Vector<Checkbox> cbx = dlg.getCheckboxes();
 		int[] idx = { CB_REDONLY, CB_GREENONLY, CB_BOTH, CB_EMPTY };
