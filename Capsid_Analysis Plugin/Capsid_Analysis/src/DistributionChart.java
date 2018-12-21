@@ -7,6 +7,7 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Shape;
+import java.awt.Stroke;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Rectangle2D;
@@ -103,6 +104,17 @@ public class DistributionChart {
 			this.bucketWidth = RedBucketWidth;
 		}
 
+		// Check for manual bin width
+		if (settings.autoBin) { 
+			settings.binField.setValue(this.bucketWidth);
+		} else { 
+		double manualBin =  ((Number)settings.binField.getValue()).doubleValue();
+		if (IJ.debugMode) {IJ.log("Using manual bin: " + manualBin); }
+		if (manualBin > 0) {
+			this.bucketWidth = manualBin;
+		}
+		}
+		
 		// this.bucketWidth =(GreenBucketWidth+RedBucketWidth)/2;
 		// Get maxes
 		maxGreen = 0;
@@ -294,7 +306,7 @@ public class DistributionChart {
 	 * @return The newly created JPanel containing an XYBar plot with markers for mean and s.d.
 	 */
 	private JPanel createPanel(Color color, double[] x, double[] y, double[] values, String key, double maxValue,
-			int series, double lowerBound, double Threshold) {
+			int series, double lowerBound, double upperBound, double Threshold) {
 		if (IJ.debugMode) {
 			IJ.log("createPanel " + key + ": maxValue = " + maxValue + ", lowerbound =" + lowerBound +
 					"\n#Values: "+values.length +"\nTHreshold: "+Threshold);
@@ -304,27 +316,36 @@ public class DistributionChart {
 		// Get a bar renderer and set it to paint in given color
 		XYBarRenderer renderer = new XYBarRenderer();
 		renderer.setSeriesPaint(0, color);
-		renderer.setDrawBarOutline(false);
+		renderer.setDrawBarOutline(true);
 		renderer.setShadowVisible(false);
 		renderer.setBarPainter(new StandardXYBarPainter());
+		renderer.setSeriesOutlinePaint(0, Color.BLACK);
+	
 		// Prepare the dataset from the given x and y array
 		final DefaultXYDataset xyData = new DefaultXYDataset();
 		double[][] xy = new double[2][];
 		xy[0] = x;
 		xy[1] = y;
 		xyData.addSeries(key, xy);
-		XYBarDataset dataset = new XYBarDataset(xyData, this.bucketWidth < 5 * 0.9 ? this.bucketWidth * 0.9 : 5);
+		double barWidth = this.bucketWidth < 5 ? 5: this.bucketWidth ;
+		if ( IJ.debugMode ) {
+			IJ.log("createPanel barwidth = "+barWidth);
+		}
+		XYBarDataset dataset = new XYBarDataset(xyData, barWidth);
 
 		// Create the plot
 		XYPlot plot = new XYPlot(dataset, new NumberAxis("Mean Intensity"), new NumberAxis("ROI Count"), renderer);
 		// and maker sure Y axis (range) is vertical
 		plot.setOrientation(PlotOrientation.VERTICAL);
+
 		// Now build data set for fitted data
 		final DefaultXYDataset xyFitData = new DefaultXYDataset();
 
 		CurveFitter cf = utils.GetFit(x, y, key + " (fit)", xyFitData, settings.debug);
 		// And fitted data to plot
 		plot.setDataset(1, xyFitData);
+		
+		plot.getRangeAxis().setUpperBound(upperBound);
 		// and get rendered to draw it as a line with no shapes
 		final XYLineAndShapeRenderer renderer2 = new XYLineAndShapeRenderer(true, false);
 		renderer2.setSeriesPaint(series, color);
@@ -352,7 +373,7 @@ public class DistributionChart {
 		xAxis.setRange(lowerBound, 255 + lowerBound);
 
 		DistributionPlot.AddMarkers(plot, utils.Mean(values), utils.StdDev(values, utils.Mean(values)), params[2], params[3],
-				cf.getFitGoodness(), null);
+				cf.getFitGoodness(), null, this.bucketWidth);
 
 		JFreeChart chart = new JFreeChart("", JFreeChart.DEFAULT_TITLE_FONT, plot, false);
 
@@ -438,11 +459,12 @@ public class DistributionChart {
 		XYBarRenderer renderer = new XYBarRenderer();
 		renderer.setSeriesPaint(0, color);
 		// renderer.setSeriesPaint(1, Color.LIGHT_GRAY);
-		renderer.setDrawBarOutline(false);
+		renderer.setDrawBarOutline(true);
 		renderer.setShadowVisible(false);
 		renderer.setBarPainter(new StandardXYBarPainter());
 		renderer.setBaseToolTipGenerator(xyToolTipGenerator);
 		renderer.setMargin(0);
+		renderer.setSeriesOutlinePaint(0, Color.BLACK);
 		// Create the plot
 		// XYPlot plot = new XYPlot(dataset, new NumberAxis("Mean Intensity"), new
 		// NumberAxis("ROI Count"),renderer);
@@ -693,9 +715,11 @@ public class DistributionChart {
 		}
 		// Create charts and add panels to frame
 		frame.add(createPanel(new Color(0, 255, 0, 128), Bins, greenBinCounts, green, "Green", this.maxGreenFrequency,
-				0, greenOffset, settings.greenThreshold));
+				0, greenOffset, (maxGreenFrequency>maxRedFrequency?maxGreenFrequency:maxRedFrequency)*1.1
+				,settings.greenThreshold));
 		frame.add(createPanel(new Color(255, 0, 0, 128), Bins, redBinCounts, red, "Red", this.maxRedFrequency, 1,
-				redOffset, settings.redThreshold));
+				redOffset, (maxGreenFrequency>maxRedFrequency?maxGreenFrequency:maxRedFrequency)*1.1
+				,settings.redThreshold));
 		frame.pack();
 		frame.setLocationRelativeTo(null);
 		// SHow frame
@@ -735,7 +759,7 @@ public class DistributionChart {
 			IJ.log("\nFrequencyPlot");
 		}
 
-		double[] Bins = GetBins(values);
+		double[] Bins = getBins(values);
 		double[] Counts = FillBins(Bins, values);
 		double[] CountsBelowThreshold = FillBins(Bins, BelowThresholdValues);
 
@@ -840,7 +864,7 @@ public class DistributionChart {
 		return result;
 	}
 
-	protected void GetBinCounts() {
+	protected void getBinCounts() {
 		IJ.log("\nGetBinCounts");
 		// Using Freedman–Diaconis' for bucketwidths
 		bucketWidth = 0;
@@ -958,7 +982,7 @@ public class DistributionChart {
 		}
 	}
 
-	public double[] GetBins(double[] values) {
+	public double[] getBins(double[] values) {
 
 		if (settings.debug > 0) {
 			IJ.log("\nGetBins on array length " + values.length);
@@ -966,9 +990,10 @@ public class DistributionChart {
 		double[] Bins;
 
 		// Calculate the bins etc in case doing distributions
-		double BucketWidth = 2 * utils.iqr(values) / Math.pow(values.length, 1.0 / 3);
-		if (settings.debug > 0) {
-			IJ.log("bucketWidth = " + BucketWidth);
+		this.bucketWidth = 2 * utils.iqr(values) / Math.pow(values.length, 1.0 / 3);
+
+		if (IJ.debugMode ) {
+			IJ.log("GetBins bucketWidth = " + this.bucketWidth);
 		}
 
 		double maxValue = utils.Max(values);
@@ -980,16 +1005,16 @@ public class DistributionChart {
 		// but if top bin would go above 255 then we ensure bins are centred such that
 		// 255 is top of last bin
 
-		double nTopBin = maxValue - (maxValue % BucketWidth) + BucketWidth;
+		double nTopBin = maxValue - (maxValue % this.bucketWidth) + this.bucketWidth;
 
 		if (settings.debug > 0) {
 			IJ.log("Top bin: " + nTopBin);
 		}
 
 		// NUmber of bins
-		int nBinCount = (int) Math.floor((nTopBin / BucketWidth) + 1);
-		if (settings.debug > 0) {
-			IJ.log("DistributionChart -  bin count: " + nBinCount);
+		int nBinCount = (int) Math.floor((nTopBin / this.bucketWidth) + 1);
+		if (IJ.debugMode) {
+			IJ.log("GetBins -  bin count: " + nBinCount);
 		}
 
 		Bins = new double[nBinCount];
@@ -997,16 +1022,16 @@ public class DistributionChart {
 		// Now if last bin would go beyond 255, we work out an offset to shift
 		// everything down such that the top bin will
 		// go from 255-bucketWidth to 255
-		if (BucketWidth * (nBinCount - 1) + (BucketWidth / 2) > 256 - (BucketWidth / 2)) {
-			offset = 256 - (BucketWidth / 2) - (BucketWidth * (nBinCount - 1) + (BucketWidth / 2));
-			if (settings.debug > 0) {
-				IJ.log("Mid Top bin would be " + (BucketWidth * (nBinCount - 1) + (BucketWidth / 2))
+		if (this.bucketWidth * (nBinCount - 1) + (this.bucketWidth / 2) > 256 - (this.bucketWidth / 2)) {
+			offset = 256 - (this.bucketWidth / 2) - (this.bucketWidth * (nBinCount - 1) + (this.bucketWidth / 2));
+			if (IJ.debugMode) {
+				IJ.log("GetBins - Mid Top bin would be " + (this.bucketWidth * (nBinCount - 1) + (this.bucketWidth / 2))
 						+ "\nOffset will be " + offset);
 			}
 		}
 		// Zero counts
 		for (int i = nBinCount - 1; i >= 0; i--) {
-			Bins[i] = BucketWidth * i + BucketWidth / 2 + offset;
+			Bins[i] = this.bucketWidth * i + this.bucketWidth / 2 + offset;
 			if (Bins[i] < 0) {
 				Bins[i] = 0;
 			}
@@ -1015,12 +1040,7 @@ public class DistributionChart {
 		return Bins;
 	}
 
-	public double[] GetBins(double[] values, double threshold) {
 
-		double[] Bins = null;
-
-		return Bins;
-	}
 
 	private IntervalXYDataset GetIntervalXYDataset(double[] bins, double[] greenBinCounts, double[] redBinCounts) {
 		// TODO Auto-generated method stub

@@ -296,13 +296,16 @@ public class Particle {
 		if (IsRedPositive()) {
 			// Orange ROI if filling and green above background
 			if (IsGreenPositive()) {
+				
 				roi.setFillColor(bFill ? new Color(255, 140, 0) : null);
 				if (!bFill) {
 					roi.setStrokeColor(new Color(255, 140, 0));
+				
 				}
+				
 			} else { // Red with raw green not above greenbackground so this is red only
 				roi.setFillColor(bFill ? new Color(255, 0, 0) : null);
-				if (bFill) {
+				if (!bFill) {
 					roi.setStrokeColor(new Color(255, 0, 0));
 				}
 			} // Otherwise check if raw is above bacground (but is not full red)
@@ -317,7 +320,7 @@ public class Particle {
 		if (IsGreenPositive()) {
 			if (!IsRedPositive()) {
 				roi.setFillColor(bFill ? new Color(0, 255, 0) : null);
-				if (bFill) {
+				if (!bFill) {
 					roi.setStrokeColor(new Color(0, 255, 0));
 				}
 			}

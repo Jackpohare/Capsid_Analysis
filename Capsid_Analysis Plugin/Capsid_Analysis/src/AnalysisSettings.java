@@ -7,6 +7,7 @@ import ij.gui.Overlay;
 import ij.process.ImageStatistics;
 
 public class AnalysisSettings {
+	public boolean autoBin = true;
 	public double backgroundDevFactor = 1.0;
 	public boolean bFillROI = false;
 	public boolean bGreyscale = false, bAdjust = false, bSubtract = false, bRemoveOutliers = false;
@@ -17,7 +18,7 @@ public class AnalysisSettings {
 	boolean bShowROI = true;
 	public double bucketWidth = 0;
 	public ImageCanvas canvas, targetCanvas = null;
-	public int debug = 3, count = 0;
+	public int debug = 0, count = 0;
 	public double greenBackgroundMean;
 	public double greenBackgroundStdDev;
 	public ImageStatistics greenStats;

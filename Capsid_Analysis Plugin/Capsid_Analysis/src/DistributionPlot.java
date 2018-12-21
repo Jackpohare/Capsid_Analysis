@@ -60,7 +60,7 @@ public class DistributionPlot {
 	}
 	
 	public  void AddMarkers( double mean, double stdDev, double fittedMean, double fittedStdDev, double fittedGoodness, String txtBeforeObserved) {
-		AddMarkers(this._plot , mean,  stdDev,  fittedMean,  fittedStdDev,  fittedGoodness, txtBeforeObserved);
+		AddMarkers(this._plot , mean,  stdDev,  fittedMean,  fittedStdDev,  fittedGoodness, txtBeforeObserved, 0);
 	}
 	/**
 	 * Add Markers lines for mean and S.D. and add observed data and fit mean and
@@ -71,8 +71,10 @@ public class DistributionPlot {
 	 * @param fittedMean
 	 * @param fittedStdDev
 	 * @param fittedGoodness
+	 * @param binWidth  Bin width being used (non zero when plotting histograms)
 	 */
-	public static  void AddMarkers(XYPlot plot, double mean, double stdDev, double fittedMean, double fittedStdDev, double fittedGoodness, String txtBeforeObserved) {
+	public static  void AddMarkers(XYPlot plot, double mean, double stdDev, double fittedMean, double fittedStdDev, double fittedGoodness
+			, String txtBeforeObserved,  double binWidth) {
 
 		double maxValue = plot.getRangeAxis().getUpperBound();
 		double lowerBound = plot.getDomainAxis().getLowerBound();
@@ -86,7 +88,8 @@ public class DistributionPlot {
 		}
 
 		String str = "Observed Mean (\u03bc): " + String.format("%.2f", mean) + "\nObserved StdDev (\u03b4): " + String.format("%.2f", stdDev)
-		+ "\nCV: " + String.format("%.2f", stdDev / mean * 100.0);
+		+ "\nCV: " + String.format("%.2f", stdDev / mean * 100.0)
+		+ (binWidth >0?String.format("\nBinWidth: %.1f", binWidth):"");
 		if (txtBeforeObserved != null ) {
 			str = txtBeforeObserved + str;
 		}
@@ -213,10 +216,11 @@ public class DistributionPlot {
 		XYBarRenderer renderer = new XYBarRenderer();
 		renderer.setSeriesPaint(0, this._color);
 		// renderer.setSeriesPaint(1, Color.LIGHT_GRAY);
-		renderer.setDrawBarOutline(false);
+		renderer.setDrawBarOutline(true);
 		renderer.setShadowVisible(false);
 		renderer.setBarPainter(new StandardXYBarPainter());
 		renderer.setBaseToolTipGenerator(xyToolTipGenerator);
+		renderer.setSeriesOutlinePaint(0, Color.BLACK);
 		renderer.setMargin(0);
 		// Create the plot
 		// XYPlot plot = new XYPlot(dataset, new NumberAxis("Mean Intensity"), new
@@ -287,7 +291,16 @@ public class DistributionPlot {
 	public double[] GetBins() {
 
 		this._binWidth = getBinWidth();
-		settings.binField.setValue(this._binWidth);
+		if (settings.autoBin) { 
+			settings.binField.setValue(this._binWidth);
+		}
+		else {
+			double manualBin =  ((Number)settings.binField.getValue()).doubleValue();
+			if (IJ.debugMode) {IJ.log("Using manual bin: " + manualBin); }
+			if (manualBin > 0) {
+				this._binWidth = manualBin;
+			}
+		}
 		// Number of bins
 		int nBinCount = (int) (255.0 / this._binWidth + 1);
 		// We have to make sure the threshold is the start of a bin, so work out offset

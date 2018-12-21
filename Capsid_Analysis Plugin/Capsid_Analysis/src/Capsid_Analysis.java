@@ -122,6 +122,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	// constants
 	protected static final int CB_SHOW_ROI = 1, CB_FILL = 2, CB_GREYSCALE = 0, CB_REDONLY = 3;
 	protected static final int CB_GREENONLY = CB_REDONLY + 1, CB_BOTH = CB_REDONLY + 2, CB_EMPTY = CB_REDONLY + 3;
+	protected static final int CB_AUTO_BIN = CB_EMPTY+1;
 	protected static final int CB_SCATTER_POS = CB_EMPTY + 1, CB_INTENSITY_POS = CB_SCATTER_POS + 1,
 			CB_FREQUENCY_POS = CB_SCATTER_POS + 2, CB_SCATTER_ALL = CB_SCATTER_POS + 3,
 			CB_INTENSITY_ALL = CB_SCATTER_POS + 4, CB_FREQUENCY_ALL = CB_SCATTER_POS + 5;
@@ -131,7 +132,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 	public static NonBlockingGenericDialog dlg;
 
-	String sVersion = " (v1.2.11, 16-Dec-2018)";;
+	String sVersion = " (v1.2.13, 21-Dec-2018)";;
 
 	public ResultsTable2 rt;
 
@@ -166,6 +167,10 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 				break;
 			case CB_FILL:
 				settings.bFillROI = cbEnabled;
+				break;
+			case CB_AUTO_BIN:
+					settings.binField.setEditable(!cbEnabled);
+					settings.autoBin = cbEnabled;
 				break;
 			}
 			DoShowROI(settings);
@@ -1106,7 +1111,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	 * @param s Settings
 	 */
 	public void DoShowROI(AnalysisSettings s) {
-		if (s.debug > 0) {
+		if (IJ.debugMode) {
 			IJ.log("DoShowROI");
 		}
 		if (dlg == null) {
@@ -1143,7 +1148,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 			bRed = bGreen = bBoth = bEmpty = false;
 		}
 
-		if (s.debug > 0) {
+		if (IJ.debugMode) {
 			IJ.log("Showing " + (bRed ? "red, " : "") + (bGreen ? "green, " : "") + (bBoth ? "Both, " : "")
 					+ (bOverlaps ? "overlapped, " : ""));
 		}
@@ -1709,7 +1714,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	 * We set up a dialog and everything is then controlled from it
 	 */
 	public void run(String arg) {
-		IJ.setDebugMode(true);
+		IJ.setDebugMode(false);
 		DoDialog();
 		if (IJ.debugMode) {IJ.log("Capsid: Dialog done");}
 	}
@@ -2130,6 +2135,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 		pnl = new Panel();
 		Checkbox c1 = new Checkbox("Auto bin", true);
+		c1.addItemListener(cbxHandler);
 		pnl.add(c1);
 		settings.binField = new JFormattedTextField(NumberFormat.getNumberInstance());
 		settings.binField.setColumns(6);
