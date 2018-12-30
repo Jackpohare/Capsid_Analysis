@@ -40,10 +40,16 @@ public class AnalysisSettings {
 	ThresholdMode thresholdMethod = ThresholdMode.THRESHOLD_AREA;
 	public ImageWindow win;
 
-	public void GetMax(ParticleList pList) {
-		this.maxRed = pList.Max("red", this.thresholdMethod);
-		this.maxGreen = pList.Max("green", this.thresholdMethod);
-		this.maxPositiveGreen = this.maxGreen;
-
-	};
+	double maxRawRed,maxRawGreen, maxMeanRed, maxMeanGreen;
+	
+	public void SetMax(ParticleList particles) {
+		maxRawRed = maxRawGreen = maxMeanRed = maxMeanGreen = 0;
+		for(Particle p: particles) {
+			maxRawRed = p.rawred>maxRawRed?p.rawred:maxRawRed;
+			maxRawGreen = p.rawgreen>maxRawGreen?p.rawgreen:maxRawGreen;
+			maxMeanRed = p.stats.redMean>maxMeanRed?p.stats.redMean:maxMeanRed;
+			maxMeanGreen = p.stats.greenMean>maxMeanGreen?p.stats.greenMean:maxMeanGreen;
+			
+		}
+	}
 }

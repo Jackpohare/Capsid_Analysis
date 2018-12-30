@@ -203,16 +203,21 @@ public class DistributionChart {
 		case POSITIVE_INTENSITY:
 			SortedIntensityPlot(false);
 			break;
-		case GREEN_FREQUENCY:
-			NewFrequencyPlot("Frequency Plot (Green): ", new Color(0, 255, 0, 128), _particles.GetGreen(true),
+		case GREEN_FREQUENCY: {
+			FrequencyPlot plot = new FrequencyPlot(_particles, title, new Color(0, 255, 0, 128), settings.greenThreshold, settings);
+			plot.NewFrequencyPlot("Frequency Plot (Green): ", new Color(0, 255, 0, 128), _particles.GetGreen(true),
 					settings.greenThreshold);
+		}
 			break;
 		case RED_FREQUENCY:
-			NewFrequencyPlot("Frequency Plot (Red): ", new Color(255, 0, 0, 128), _particles.GetRed(true),
+		{
+			FrequencyPlot plot = new FrequencyPlot(_particles, title, new Color(255, 0, 0, 128), settings.redThreshold, settings);
+			plot.NewFrequencyPlot("Frequency Plot (Red): ", new Color(255, 0, 0, 128), _particles.GetRed(true),
 					settings.redThreshold);
 			// FrequencyPlot("Frequency Plot (Red): ",GetPosRed(_particles),
 			// s.redThreshold,new Color(255,0,0,128),GetNegRed(_particles));
 			break;
+		}
 		default:
 			break;
 		}
@@ -228,16 +233,11 @@ public class DistributionChart {
 		}
 	}
 
-	public void AllScatterPlot() {
-		if (settings.debug > 0) {
-			IJ.log("\nAllScatterPlot");
-		}
-		JFrame frame = new JFrame("Scatter plot (All particles): " + settings.image.getTitle());
-		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		frame.add(createScatterPanel());
-		frame.pack();
-		frame.setLocationRelativeTo(null);
-		frame.setVisible(true);
+
+	public ScatterPlot AllScatterPlot() {
+		ScatterPlot plot = new ScatterPlot(this._particles, settings.redThreshold, settings.greenThreshold) ;
+		plot.ShowAllScatterPlot(settings.image.getTitle(), settings.thresholdMethod==ThresholdMode.THRESHOLD_MEAN);
+		return plot;
 	}
 
 	protected void BuildMultiChart() {
@@ -587,7 +587,7 @@ public class DistributionChart {
 		renderer.setSeriesShape(1, shape);
 		renderer.setSeriesStroke(0, new BasicStroke(0.5f));
 		renderer.setSeriesStroke(1, new BasicStroke(0.5f));
-		XYPlot plot = new XYPlot(dataset, new NumberAxis("n"), new NumberAxis("Mean Intensity"), renderer);
+		XYPlot plot = new XYPlot(dataset, new NumberAxis("n"), new NumberAxis((settings.thresholdMethod==ThresholdMode.THRESHOLD_MEAN?"Mean":"Raw")+" Intensity"), renderer);
 
 		// If doing all set markers for thresholds
 		// Add a marker in correct color for the threshold
@@ -618,77 +618,6 @@ public class DistributionChart {
 
 		return panel;
 	}
-
-	/**
-	 * Creates a scatter plot of red vs green intensity for each Particle
-	 * 
-	 * @return The plot in a panel
-	 */
-	private JPanel createScatterPanel() {
-		JPanel panel = new JPanel(new BorderLayout());
-		boolean bIsMean = settings.thresholdMethod == ThresholdMode.THRESHOLD_MEAN;
-		String intensity = (bIsMean ? "Mean" : "Raw ") + " intensity";
-		JFreeChart chart = ChartFactory.createScatterPlot(settings.image.getTitle(), "Green " + intensity,
-				"Red " + intensity, GetAllXY());
-		chart.setTitle(new org.jfree.chart.title.TextTitle(settings.image.getTitle(),
-				new java.awt.Font("SansSerif", java.awt.Font.BOLD, 12)));
-
-		if (settings.debug > 0) {
-			IJ.log("Chart created, getting XY plot");
-		}
-		XYPlot plot = chart.getXYPlot();
-		if (settings.debug > 0) {
-			IJ.log("XY plot got, getting renderer");
-		}
-		XYLineAndShapeRenderer renderer = (XYLineAndShapeRenderer) plot.getRenderer();
-
-		renderer.setSeriesShape(0, new Ellipse2D.Double(-2d, -2d, 4d, 4d));
-		renderer.setSeriesShape(1, new Ellipse2D.Double(-2d, -2d, 4d, 4d));
-		renderer.setSeriesShape(2, new Ellipse2D.Double(-2d, -2d, 4d, 4d));
-		renderer.setSeriesShape(3, new Ellipse2D.Double(-2d, -2d, 4d, 4d));
-		renderer.setSeriesPaint(0, Color.GREEN);
-		renderer.setSeriesPaint(1, Color.RED);
-		renderer.setSeriesPaint(3, Color.MAGENTA);
-		renderer.setSeriesPaint(2, Color.ORANGE);
-		plot.setRenderer(0, renderer);
-
-		plot.setBackgroundPaint(Color.white);
-		plot.setRangeGridlinePaint(Color.DARK_GRAY);
-		plot.setDomainGridlinePaint(Color.DARK_GRAY);
-		plot.getDomainAxis().setRange(0, 255);
-		plot.getRangeAxis().setRange(0, 255);
-		ValueMarker redmarker = new ValueMarker(settings.greenThreshold); // position red THreshold line marker on the
-																			// axis
-		float[] dash = { 10.0f };
-		redmarker.setStroke(new BasicStroke(2.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 1.0f, dash, 0.0f));
-		redmarker.setPaint(Color.GREEN);
-
-		if (settings.debug > 0) {
-			IJ.log("Adding redmarker for green threshold");
-		}
-		plot.addDomainMarker(redmarker, Layer.FOREGROUND);
-
-		if (settings.debug > 0) {
-			IJ.log("Creating marker for red threshold");
-		}
-		ValueMarker marker = new ValueMarker(settings.redThreshold); // position red THreshold line marker on the axis
-		marker.setStroke(new BasicStroke(2.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 1.0f, dash, 0.0f));
-		marker.setPaint(Color.RED);
-
-		plot.addRangeMarker(marker, Layer.FOREGROUND);
-
-		ChartPanel chartPanel = new ChartPanel(chart) {
-
-			@Override
-			public Dimension getPreferredSize() {
-				return new Dimension(600, 600);
-			}
-		};
-		chartPanel.setBackground(Color.WHITE);
-		panel.add(chartPanel, BorderLayout.CENTER);
-		return panel;
-	}
-
 	/**
 	 * Comparative frequncy historgram for red and green
 	 */
@@ -824,45 +753,7 @@ public class DistributionChart {
 		return series;
 	}
 
-	/**
-	 * Get all red/green values (either mean of raw depending on threshold mode in
-	 * settings). Note that series are in fixed order in returned collection - green
-	 * only, red only, both, empty
-	 * 
-	 * @return a collection of four series, one each for each type of aparticles.
-	 *         Each series is green (x) and red (y)
-	 */
-	private XYSeriesCollection GetAllXY() {
-		XYSeriesCollection result = new XYSeriesCollection();
-		XYSeries series;
-		XYSeries green = new XYSeries("Green Only");
-		XYSeries red = new XYSeries("Red Only");
-		XYSeries both = new XYSeries("Both");
-		XYSeries empty = new XYSeries("Empty");
-		for (int i = 0; i < _particles.size(); i++) {
-			Particle p = _particles.get(i);
-			switch (p.GetStatus()) {
-			case "Both":
-				series = both;
-				break;
-			case "Red Only":
-				series = red;
-				break;
-			case "Green Only":
-				series = green;
-				break;
-			default:
-				series = empty;
-				break;
-			}
-			series.add(p.greenval(), p.redval());
-		}
-		result.addSeries(green);
-		result.addSeries(red);
-		result.addSeries(both);
-		result.addSeries(empty);
-		return result;
-	}
+
 
 	protected void getBinCounts() {
 		IJ.log("\nGetBinCounts");
@@ -1062,59 +953,6 @@ public class DistributionChart {
 		}
 		return new XYBarDataset(dataset, 5);
 	}
-
-	public void NewFrequencyPlot(String key, Color color, double[] values, double threshold) {
-		DistributionPlot dPlot = new DistributionPlot(settings, key, color, values, threshold, true);
-		JFrame frame = new JFrame(key);
-		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-		// frame.setLayout(new GridLayout(0, 1));
-		JPanel panel = new JPanel(new BorderLayout());
-		JSlider thresholdSlider = new JSlider(0, 255, (int) threshold) {
-
-			public String getToolTipText(MouseEvent e) {
-
-				return "Threshold: " + this.getValue();
-			}
-
-		};
-		// Create chart
-		JFreeChart chart = new JFreeChart(key, JFreeChart.DEFAULT_TITLE_FONT, dPlot.getPlot(), false);
-		ChartPanel chartPanel = new ChartPanel(chart) {
-
-			@Override
-			public Dimension getPreferredSize() {
-				return new Dimension(800, 600);
-			}
-		};
-
-		thresholdSlider.setMajorTickSpacing(10);
-		thresholdSlider.setMinorTickSpacing(1);
-		thresholdSlider.setPaintLabels(true);
-		thresholdSlider.setPaintTicks(true);
-		thresholdSlider.setToolTipText("Try again");
-
-		thresholdSlider.addChangeListener(new HandleThresholdSlider(dPlot));
-		// Create chart and add panel to frame
-		panel.setSize(800, 50);
-		// panel.add(thresholdSlider);
-		// frame.add(panel);
-		// chartPanel.add(thresholdSlider);
-		// frame.add(chartPanel);
-		// frame.getContentPane().setLayout(mgr);;
-		JPanel p2 = new JPanel();
-		p2.setLayout(new BorderLayout());
-		p2.setBorder(BorderFactory.createEmptyBorder(5, 40, 5, 40));
-		p2.add(thresholdSlider);
-		frame.getContentPane().add(chartPanel, BorderLayout.CENTER);
-		frame.getContentPane().add(p2, BorderLayout.PAGE_START);
-		frame.pack();
-		frame.setLocationRelativeTo(null);
-		frame.validate();
-		// SHow frame
-		frame.setVisible(true);
-
-	}
-
 	public void setThreshold(int threshold) {
 		this._threshold = threshold;
 		// Get new bins

@@ -243,19 +243,7 @@ final public class utils {
 		return mean / (double) n;
 	}
 
-	static double Mean(int[] pixels, String channel) {
-		double mean = 0;
-		int n = pixels.length;
-		for (int i = 0; i < n; i++) {
-			int p = (pixels[i] & 0xff00) >> 8; // presume green
-			if (channel == "red") {
-				p = (pixels[i] & 0xff0000) >> 16;
-			}
-			mean += p;
-		}
-		return mean / n;
-	}
-
+	
 	static double quantile(double[] arr, double p) {
 		return quantile(arr, p, 0);
 	}
@@ -305,21 +293,6 @@ final public class utils {
 		}
 		return Math.sqrt(SUM / (n - 1));
 
-	}
-
-	static double StdDev(int[] pixels, String channel) {
-		double SUM = 0;
-		int n = pixels.length;
-		double mean = Mean(pixels, channel);
-		for (int i = 0; i < n; i++) {
-			int p = (pixels[i] & 0xff00) >> 8; // presume green
-			if (channel == "red") {
-				p = (pixels[i] & 0xff0000) >> 16;
-			}
-
-			SUM = SUM + (p - mean) * (p - mean);
-		}
-		return Math.sqrt(SUM / (n - 1));
 	}
 
 	static public XYSeries XYSeriesFromArrays(String key, double[] x, double y[]) {

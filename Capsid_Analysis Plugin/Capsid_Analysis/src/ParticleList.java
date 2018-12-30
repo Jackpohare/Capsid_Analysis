@@ -3,19 +3,23 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
+
 import ij.IJ;
 import ij.gui.Roi;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageStatistics;
 
 public class ParticleList extends ArrayList<Particle> {
+	ParticleListStats stats=null;
 	/**
 	 * Enumerate and classify the ROI for all particles in the given list
 	 * 
 	 * @param particles
 	 */
 	public void ClassifyParticles(AnalysisSettings settings) {
-		Particle.settings = settings;
+		Particle.setSettings(settings);
 		// Loop through all particles, testing for positives, removing non positives and
 		// colouring ROI appropriately
 		for (Particle p : this) {
@@ -23,6 +27,11 @@ public class ParticleList extends ArrayList<Particle> {
 		}
 	}
 
+	public ParticleListStats SetStats() {
+		this.stats = new ParticleListStats(this);
+		return this.stats;
+	}
+	
 	/**
 	 * Give list of particles and a type, return a count of particles of the
 	 * requested type
@@ -289,6 +298,45 @@ public class ParticleList extends ArrayList<Particle> {
 
 		return posList;
 	}
+	
+	/**
+	 * Get all red/green values (either mean of raw depending on threshold mode in
+	 * settings). Note that series are in fixed order in returned collection - green
+	 * only, red only, both, empty
+	 * 
+	 * @return a collection of four series, one each for each type of aparticles.
+	 *         Each series is green (x) and red (y)
+	 */
+	public XYSeriesCollection GetAllXY(boolean bRaw) {
+		XYSeriesCollection result = new XYSeriesCollection();
+		XYSeries series;
+		XYSeries green = new XYSeries("Green Only");
+		XYSeries red = new XYSeries("Red Only");
+		XYSeries both = new XYSeries("Both");
+		XYSeries empty = new XYSeries("Empty");
+		for (Particle p: this) {
+			switch (p.GetStatus()) {
+			case "Both":
+				series = both;
+				break;
+			case "Red Only":
+				series = red;
+				break;
+			case "Green Only":
+				series = green;
+				break;
+			default:
+				series = empty;
+				break;
+			}
+			series.add(p.greenval(bRaw), p.redval(bRaw));
+		}
+		result.addSeries(green);
+		result.addSeries(red);
+		result.addSeries(both);
+		result.addSeries(empty);
+		return result;
+	}
 
 	/**
 	 * Return array of red intensity values for either all or just red positive
@@ -311,19 +359,20 @@ public class ParticleList extends ArrayList<Particle> {
 		return posList.GetArrayFromList("redval");
 	}
 
-	public double Max(String channel, ThresholdMode thresholdMethod) {
+
+	public double Max(String channel, boolean bUseMean) {
 		double max = 0;
 		for (int i = 0; i < this.size(); i++) {
 			Particle p = this.get(i);
 			if (channel == "green") {
-				if (thresholdMethod == ThresholdMode.THRESHOLD_MEAN) {
-					max = p.greenmean > max ? p.greenmean : max;
+				if (bUseMean) {
+					max = p.stats.greenMean > max ? p.stats.greenMean : max;
 				} else {
 					max = p.rawgreen > max ? p.rawgreen : max;
 				}
 			} else {
-				if (thresholdMethod == ThresholdMode.THRESHOLD_MEAN) {
-					max = p.redmean > max ? p.redmean : max;
+				if (bUseMean) {
+					max = p.stats.redMean > max ? p.stats.redMean : max;
 				} else {
 					max = p.rawred > max ? p.rawred : max;
 				}
@@ -331,7 +380,6 @@ public class ParticleList extends ArrayList<Particle> {
 		}
 		return max;
 	}
-
 	public ParticleList Merge(ParticleList green, AnalysisSettings settings) {
 		IJ.log("Merge " + this.size() + " red and " + green.size() + " green");
 		ParticleList roiList = new ParticleList();
@@ -404,8 +452,8 @@ public class ParticleList extends ArrayList<Particle> {
 	public void RecalcParticles(AnalysisSettings settings) {
 		// First set intensity for each particle, then get max red and green, then set
 		// percentages
-		this.setIntensities(settings);
-		settings.GetMax(this);
+		// this.setIntensities(settings);
+		settings.SetMax(this);
 		for (int i = 0; i < this.size(); i++) {
 			this.get(i).setPct();
 		}

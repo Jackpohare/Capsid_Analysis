@@ -11,46 +11,79 @@ import ij.measure.ResultsTable;
 import ij.process.ImageProcessor;
 
 public class Particle {
-	public static AnalysisSettings settings;
+	private static AnalysisSettings settings = null;
+	
+	
 	Roi roi; // Actual Roi
 	double x, y; // Maxima point
 	/**
 	 * ID of this particle - note that IDs start at 1
 	 */
 	int id; // id
-	double rawred, rawgreen; // Red and green raw intensity
-	double red, green; // Red and green score
-	double redPct, greenPct;
-	double redmean = 0, redstdDev = 0;
-	double greenmean = 0, greenstdDev = 0;
+	protected double rawred, rawgreen; // Red and green raw intensity
+
+	double redRawPct, greenRawPct, redMeanPct, greenMeanPct;
 	boolean bOverlaps = false;
 	int[] pixels = null;
-	int redMax, greenMax;
 	public int redRank, redBelow, greenRank, greenBelow;
+	PixelStats stats=null;
+	String status = "Undefined";
 
-	public Particle(int id, double x, double y, AnalysisSettings s) {
-		if (id <= 1) {
-			settings = s;
+	public Particle(int id, double x, double y) {
+		if ( settings == null ) {
+			throw new RuntimeException("settings unavailable for particle creation."); 
 		}
 		this.id = id;
 		this.x = x;
 		this.y = y;
 		this.roi = new OvalRoi(x - settings.pointDiameter / 2.0, y - settings.pointDiameter / 2.0,
 				settings.pointDiameter * 1.0, settings.pointDiameter * 1.0);
+		setIntensity();
 
 	}
+	
+	static public void setSettings(AnalysisSettings s) {
+		settings = s;
+	}
 
+	/**
+	 * 
+	 * @return Raw red intensity of this particle
+	 */
+	public double red() {
+		return red(true);
+	}
+	
+	public double red(boolean getRaw) {
+		return getRaw?this.rawred:this.stats.redMean;
+	}
+	
+	/**
+	 * 
+	 * @return Raw green intensity of this particle
+	 */
+	public double green() {
+		return green(true);
+	}
+	
+	public double green(boolean getRaw) {
+		return getRaw?this.rawgreen:this.stats.greenMean;
+	}
 	/**
 	 * Set the stroke colour for the ROI of this particle depending on it's type
 	 */
 	public void classify() {
 		if (IsBoth()) {
+			status = "Both";
 			roi.setStrokeColor(Color.orange);
 		} else if (IsRedPositive()) {
+			status = "Red Only";
 			roi.setStrokeColor(Color.red);
 		} else if (IsGreenPositive()) {
+			status = "Green only";
 			roi.setStrokeColor(Color.green);
 		} else {
+			status = "Empty";
 			roi.setStrokeColor(Color.magenta);
 		}
 	}
@@ -123,40 +156,31 @@ public class Particle {
 			}
 		}
 
-		this.greenmean = utils.Mean(this.pixels, "green");
-		this.greenstdDev = utils.StdDev(this.pixels, "green");
-		this.redmean = utils.Mean(this.pixels, "red");
-		this.redstdDev = utils.StdDev(this.pixels, "red");
-		this.redMax = utils.Max(this.pixels, "red");
-		this.greenMax = utils.Max(this.pixels, "green");
+		this.stats = new PixelStats(this.pixels); 
+	
 
 		return rgb;
 	}
 
 	public String GetStatus() {
-		if (IsBoth()) {
-			return "Both";
-		} else if (IsEmpty()) {
-			return "Empty";
-		} else if (IsRedPositive()) {
-			return "Red Only";
-		} else if (IsGreenPositive()) {
-			return "Green Only";
-		}
-		return "";
+	
+		return this.status;
 	}
 
 	public double greenval() {
-		if (settings.thresholdMethod == ThresholdMode.THRESHOLD_MEAN) {
-			return greenmean;
-		}
-		return rawgreen;
+
+		return greenval(settings.thresholdMethod != ThresholdMode.THRESHOLD_MEAN);
 	}
 
+
+	public double greenval(boolean bRaw) {
+		return bRaw?rawgreen:this.stats.greenMean;
+
+	}
 	/**
 	 * @return TRUE if particle if BOTH red and green positive, else FALSE
 	 */
-	public boolean IsBoth() {
+	protected boolean IsBoth() {
 		return IsRedPositive() && IsGreenPositive();
 	}
 
@@ -164,20 +188,20 @@ public class Particle {
 	 * @return TRUE if particle is neither green nor red positive else FALSE
 	 *         (particle is red or green or both)
 	 */
-	public boolean IsEmpty() {
-		return !IsRedPositive() && !IsGreenPositive();
+	protected boolean IsEmpty() {
+		return this.status=="Empty";
 	}
 
-	public boolean IsGreenPositive() {
+	protected boolean IsGreenPositive() {
 		if (settings.thresholdMethod == ThresholdMode.THRESHOLD_MEAN) {
-			return this.greenmean >= settings.greenThreshold;
+			return this.stats.greenMean >= settings.greenThreshold;
 		}
 		return this.rawgreen >= settings.greenThreshold;
 	}
 
-	public boolean IsRedPositive() {
+	protected boolean IsRedPositive() {
 		if (settings.thresholdMethod == ThresholdMode.THRESHOLD_MEAN) {
-			return this.redmean >= settings.redThreshold;
+			return this.stats.redMean >= settings.redThreshold;
 		}
 		return this.rawred >= settings.redThreshold;
 	}
@@ -198,34 +222,29 @@ public class Particle {
 	 *         depending on the current thresholding method
 	 */
 	public double redval() {
-		if (settings.thresholdMethod == ThresholdMode.THRESHOLD_MEAN) {
-			return redmean;
-		}
-		return rawred;
+		return redval(settings.thresholdMethod != ThresholdMode.THRESHOLD_MEAN) ;
 	}
 
+	public double redval(boolean bRaw) {
+		return bRaw?rawred:this.stats.redMean;
+	}
 	/**
 	 * Sets all the key measures for this ROI: raw red & green, mean & stdDev red &
 	 * green Also sets pixels
 	 */
-	public void setIntensity() {
+	private void setIntensity() {
 
 		double[] rgb = GetRoiIntensity(this.roi);
 		this.rawred = rgb[0];
 		this.rawgreen = rgb[1];
-		this.red = this.rawred - settings.redBackground;
-		if (this.red < 0) {
-			this.red = 0;
-		}
-		this.green = this.rawgreen - settings.greenBackground;
-		if (this.green < 0) {
-			this.green = 0;
-		}
+
 	}
 
 	public void setPct() {
-		this.redPct = this.redval() * 100.0 / settings.maxRed;
-		this.greenPct = this.greenval() * 100.0 / settings.maxGreen;
+		this.redRawPct = this.rawred*100.0 / settings.maxRawRed;
+		this.greenRawPct = this.rawgreen* 100.0 / settings.maxRawGreen;
+		this.redMeanPct = this.stats.redMean*100.0 / settings.maxMeanRed;
+		this.greenMeanPct = this.stats.greenMean* 100.0 / settings.maxMeanGreen;
 
 	}
 
@@ -265,11 +284,11 @@ public class Particle {
 				"Green Ranking", "#Greens below this" };
 
 		String[] Values = { "" + id, GetStatus(), String.valueOf(x), String.valueOf(y), String.format("%.0f", rawred),
-				String.format("%.1f", redmean), String.format("%.1f", redstdDev), String.format("%.1f", redPct),
-				String.format("%.1f", redmean/settings.redThreshold*100.0),
-				"" + redRank, "" + redBelow, String.format("%.0f", rawgreen), String.format("%.1f", greenmean),
-				String.format("%.1f", greenstdDev), String.format("%.1f", greenPct), 
-				String.format("%.1f", greenmean/settings.greenThreshold*100.0),
+				String.format("%.1f", this.stats.redMean), String.format("%.1f", this.stats.redStdDev), String.format("%.1f", redPct),
+				String.format("%.1f", redval()/settings.redThreshold*100.0),
+				"" + redRank, "" + redBelow, String.format("%.0f", rawgreen), String.format("%.1f", this.stats.greenMean),
+				String.format("%.1f", this.stats.greenStdDev), String.format("%.1f", greenPct), 
+				String.format("%.1f", greenval()/settings.greenThreshold*100.0),
 				"" + greenRank, "" + greenBelow, };
 		String[] background = { "", "", "", "", 
 				String.format("%.0f", settings.redBackground),String.format("%.1f", settings.redBackgroundMean), String.format("%.1f", settings.redBackgroundStdDev),

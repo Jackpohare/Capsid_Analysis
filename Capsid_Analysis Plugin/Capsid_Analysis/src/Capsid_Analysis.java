@@ -76,6 +76,8 @@ import ij.text.TextWindow;
 
 public class Capsid_Analysis implements PlugIn, ActionListener {
 
+	String sVersion = " (v1.2.14, 28-Dec-2018)";
+	
 	class PopupActionListener implements ActionListener {
 		Particle p;
 
@@ -131,8 +133,6 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	protected static final int TF_POINTDIAMETER = TF_NOISETOLERANCE + 1, TF_BACKGROUNDDEV = TF_NOISETOLERANCE + 2;
 
 	public static NonBlockingGenericDialog dlg;
-
-	String sVersion = " (v1.2.13, 21-Dec-2018)";;
 
 	public ResultsTable2 rt;
 
@@ -216,14 +216,9 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 			this.particles.RecalcParticles(this.settings);
 			int[] pixels = GetBackgroundPixels();
-			IJ.log("Background Red mean and SD: " + utils.Mean(pixels, "red") + ", " + utils.StdDev(pixels, "red"));
-			IJ.log("Background Green mean and SD: " + utils.Mean(pixels, "green") + ", "
-					+ utils.StdDev(pixels, "green"));
-
-			settings.redBackgroundMean = utils.Mean(pixels, "red");
-			settings.redBackgroundStdDev = utils.StdDev(pixels, "red");
-			settings.greenBackgroundMean = utils.Mean(pixels, "green");
-			settings.greenBackgroundStdDev = utils.StdDev(pixels, "green");
+			PixelStats backgroundStats = new PixelStats(pixels);
+			IJ.log("Background Red mean and SD: " + backgroundStats.redMean + ", " + backgroundStats.redStdDev);
+			IJ.log("Background Green mean and SD: " + backgroundStats.greenMean + ", "	+ backgroundStats.greenStdDev);
 
 			// Get threshold method and set thresholds
 			Vector<Choice> choices = dlg.getChoices();
@@ -501,19 +496,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		renderer.setSeriesPaint(0, new Color(0, 255, 0, 255));
 		renderer.setSeriesPaint(1, new Color(255, 0, 0, 255));
 
-		/*
-		 * final CategoryAxis domainAxis = plot.getDomainAxis();
-		 * domainAxis.setCategoryLabelPositions(CategoryLabelPositions.UP_45);
-		 * domainAxis.setLowerMargin(0.0); domainAxis.setUpperMargin(0.0);
-		 * domainAxis.addCategoryLabelToolTip("Type 1", "The first type.");
-		 * domainAxis.addCategoryLabelToolTip("Type 2", "The second type.");
-		 * domainAxis.addCategoryLabelToolTip("Type 3", "The third type.");
-		 * 
-		 * final NumberAxis rangeAxis = (NumberAxis) plot.getRangeAxis();
-		 * rangeAxis.setStandardTickUnits(NumberAxis.createIntegerTickUnits());
-		 * rangeAxis.setLabelAngle(0 * Math.PI / 2.0); // OPTIONAL CUSTOMISATION
-		 * COMPLETED.
-		 */
+		
 		return chart;
 
 	}
@@ -575,257 +558,6 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		ShowDialog(settings);
 	}
 
-/*	private void DoFrequencyPlot(AnalysisSettings s, double bucketWidth, boolean bPositivesOnly, boolean bRedOnly,
-			boolean bGreenOnly, String sTitle) {
-		// Get only positivies
-		int i;
-		double[] red;
-		double[] green;
-
-		if (s.debug > 0) {
-			IJ.log("\nDoPositiveFrequencyPlot - " + sTitle);
-		}
-
-		settings.GetMax(particles);
-
-		int nCount;
-		if (bPositivesOnly) {
-			red = particles.GetPosRed();
-			green = particles.GetPosGreen();
-			nCount = red.length;
-		} else {
-			red = particles.GetArrayFromList("redval");
-			green = particles.GetArrayFromList("greenval");
-			nCount = red.length;
-		}
-		double maxGreen = 0, maxRed = 0;
-		for (i = 0; i < green.length; i++) {
-			if (green[i] > maxGreen) {
-				maxGreen = green[i];
-			}
-		}
-		for (i = 0; i < red.length; i++) {
-			if (red[i] > maxRed) {
-				maxRed = red[i];
-			}
-		}
-
-		if (s.debug > 0) {
-			IJ.log("DoPositiveFrequencyPlot - max positive green: " + maxGreen);
-		}
-
-		// check if using Freedman–Diaconis' choice
-		if (bucketWidth == 0) {
-			double[] arr;
-			if (bGreenOnly) {
-				arr = green;
-			} else if (bRedOnly || bPositivesOnly) {
-				arr = red;
-			} else {
-				arr = maxGreen > maxRed ? green : red;
-			}
-			if (arr.length <= 0) {
-				IJ.log("DoFrequencyPlot auto bin array is empty");
-				return;
-			}
-			if (s.debug > 0) {
-				IJ.log("DoFrequencyPlot arr length = " + arr.length);
-				if (s.debug > 3) {
-					IJ.log("DoFrequencyPlot arr:");
-					for (int idx = 0; idx < arr.length; idx++) {
-						IJ.log(idx + "," + arr[idx]);
-					}
-				}
-			}
-			bucketWidth = 2 * utils.iqr(arr) / Math.pow(arr.length, 1.0 / 3);
-			if (s.debug > 0) {
-				IJ.log("IQR is " + utils.iqr(arr));
-				IJ.log("Divisor is " + Math.pow(arr.length, 1 / 3));
-				IJ.log("DoFrequencyPlot auto bin interval is " + bucketWidth);
-			}
-		}
-
-		// Work out bins based on greenMax - bins go from 0 in binInterval steps to
-		// first binInterval above greenMax (.e.g 15 is max & interval is ten then it is
-		// 0,10,20)
-		// get top limit
-
-		double nTopBin = maxGreen - (maxGreen % bucketWidth) + bucketWidth;
-		if (maxRed > maxGreen) {
-			nTopBin = maxRed - (maxRed % bucketWidth) + bucketWidth;
-		}
-		if (bRedOnly) {
-			nTopBin = s.maxRed - (s.maxRed % bucketWidth) + bucketWidth;
-		}
-		if (s.debug > 0) {
-			IJ.log("DoPositiveFrequencyPlot - top bin: " + nTopBin);
-		}
-
-		// NUmber of bins
-		int nBinCount = (int) Math.floor((nTopBin / bucketWidth) + 1);
-		if (s.debug > 0) {
-			IJ.log("DoPositiveFrequencyPlot -  bin count: " + nBinCount);
-		}
-
-		double[] greenBinCounts = new double[nBinCount];
-		double[] redBinCounts = new double[nBinCount];
-		double[] Bins = new double[nBinCount];
-		double maxGreenFrequency = 0, maxRedFrequency = 0;
-		// Zero counts
-		for (i = 0; i < nBinCount; i++) {
-			greenBinCounts[i] = 0;
-			redBinCounts[i] = 0;
-			Bins[i] = bucketWidth * i + bucketWidth / 2;
-		}
-
-		// Now do counts
-		for (i = 0; i < green.length; i++) {
-			int nBinIndex = (int) Math.floor(green[i] / bucketWidth);
-			if (nBinIndex < nBinCount) {
-				greenBinCounts[nBinIndex]++;
-				if (greenBinCounts[nBinIndex] > maxGreenFrequency) {
-					maxGreenFrequency = greenBinCounts[nBinIndex];
-				}
-			}
-			nBinIndex = (int) Math.floor(red[i] / bucketWidth);
-			if (nBinIndex < nBinCount) {
-				redBinCounts[nBinIndex]++;
-				if (redBinCounts[nBinIndex] > maxRedFrequency) {
-					maxRedFrequency = redBinCounts[nBinIndex];
-				}
-			}
-		}
-
-		Plot p = new Plot(sTitle,
-				(settings.thresholdMethod == ThresholdMode.THRESHOLD_MEAN ? "Mean " : "") + "Intensity",
-				"Count of particles");
-		// Plot.setLimits(0,x.length, greenMax*1.1);
-		// Plot.setFontSize(14);
-		// Plot.addText(sTitle,0.1, 0.1);
-
-		// Do green counts as individual lines with a think line to simulate a column
-		// chart
-		if (!bRedOnly) {
-			p.setColor(new Color(0, 255, 0, 128));
-			p.setLineWidth(10);
-			for (i = 0; i < Bins.length; i++) {
-				double[] cx = { Bins[i] + (bGreenOnly ? 0 : -1), Bins[i] + (bGreenOnly ? 0 : -1) },
-						cy = { 0, greenBinCounts[i] };
-				p.setLineWidth(10);
-				p.setColor(new Color(0, 255, 0, 128));
-				if (cy[1] > 0) {
-					p.setLineWidth(10);
-					p.setColor(new Color(0, 255, 0, 128));
-					p.add("line", cx, cy);
-					// p.drawLine(cx[0], cy[0], cx[1], cy[1]);
-				}
-
-				if (s.debug > 0) {
-					IJ.log("Green " + (Bins[i] - bucketWidth / 2) + " - " + (Bins[i] + bucketWidth / 2) + ": " + cy[1]);
-				}
-			}
-		}
-		if (!bGreenOnly) {
-			p.setColor(new Color(255, 0, 0, 128));
-			p.setLineWidth(10);
-			for (i = 0; i < Bins.length; i++) {
-				double[] cx = { Bins[i] + (bRedOnly ? 0 : 1), Bins[i] + (bRedOnly ? 0 : 1) },
-						cy = { 0, redBinCounts[i] };
-				if (cy[1] > 0) {
-					p.setLineWidth(10);
-					p.setColor(new Color(255, 0, 0, 128));
-					p.add("line", cx, cy);
-					// p.drawLine(cx[0], cy[0], cx[1], cy[1]);
-				}
-
-				if (s.debug > 0) {
-					IJ.log("Red " + (Bins[i] - bucketWidth / 2) + " - " + (Bins[i] + bucketWidth / 2) + ": " + cy[1]);
-				}
-
-			}
-		}
-		
-		 * p.setColor(Color.green, Color.green); p.setLineWidth(1); p.add("circle",
-		 * Bins, greenBinCounts);
-		 * 
-		 * p.setColor(Color.red, Color.red); p.setLineWidth(1); p.add("circle", Bins,
-		 * redBinCounts);
-		 
-		for (i = 0; i < nBinCount && s.bLabelValues; i++) {
-			p.setFont(new Font("Helvetica", Font.BOLD, PlotWindow.fontSize));
-			p.setColor(new Color(153, 0, 0), new Color(153, 0, 0));
-			p.addText(String.valueOf(redBinCounts[i]), Bins[i], redBinCounts[i]);
-			p.setColor(new Color(0, 102, 51), new Color(0, 102, 51));
-			p.addText(String.valueOf(greenBinCounts[i]), Bins[i], greenBinCounts[i]);
-		}
-
-		if (!bRedOnly) {
-			p.setColor(Color.green, Color.green);
-			p.setLineWidth(1);
-			if (settings.debug > 0) {
-				IJ.log("Fitting green...");
-			}
-			DoPlotFit(Bins, greenBinCounts, p, s, bPositivesOnly ? Color.green : Color.black, -1);
-		}
-
-		if (!bGreenOnly) {
-			p.setColor(Color.red, Color.red);
-			p.setLineWidth(1);
-			if (settings.debug > 0) {
-				IJ.log("Fitting red...");
-			}
-
-			DoPlotFit(Bins, redBinCounts, p, s, bPositivesOnly ? Color.red : Color.black,
-					(bPositivesOnly ? 0.9 : 0.05));
-		}
-
-		if (bPositivesOnly) {
-			DrawDistributions(Bins, greenBinCounts, Bins, redBinCounts, settings);
-			OverlappedFrequencyChart(green, red, s);
-			IJ.log("\nDistributionChart - ");
-			DistributionChart newChart = new DistributionChart("Overlapped", particles, s, ChartType.OVERLAPPED);
-//	    	newChart = new  DistributionChart("MULTI", particles, s, ChartType.MULTI);
-			newChart = new DistributionChart("MULTI", particles, s, ChartType.DOUBLE_PLOT);
-			newChart = new DistributionChart("Scatter", particles, s, ChartType.ALL_SCATTER);
-		}
-
-		if (bRedOnly) {
-			// dO BACKGROUND DOTTED LINE
-			p.setColor(Color.red, Color.red);
-			p.setLineWidth(1);
-			p.drawDottedLine(s.redThreshold, 0, s.redThreshold, s.maxGreen * 1.1, 2);
-
-		}
-		if (bGreenOnly) {
-			// dO BACKGROUND DOTTED LINE
-			p.setColor(Color.green, Color.green);
-			p.setLineWidth(1);
-			p.drawDottedLine(s.greenThreshold, 0, s.greenThreshold, maxGreen * 1.1, 2);
-
-		}
-
-		// p.setLimitsToFit(true);
-		// Set xMax and yMax depending on type of frequency plot
-		double xMax, yMax;
-		if (bGreenOnly) {
-			xMax = s.maxGreen * 1.1;
-			yMax = maxGreenFrequency * 1.1;
-			p.setLimits(0, xMax, 0, yMax);
-		} else if (bRedOnly) {
-			xMax = s.maxRed * 1.1;
-			yMax = maxRedFrequency * 1.1;
-			p.setLimits(0, xMax, 0, yMax);
-		} else {
-			p.setLimitsToFit(false);
-		}
-
-		p.setColor(Color.black, Color.black);
-		p.setLineWidth(1);
-		p.show();
-
-	}
-
-*/	
 	 
 	/**
 	 * @param x
@@ -882,27 +614,10 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 	public void DoPlots(AnalysisSettings settings) {
 		DistributionChart newChart;
-		settings.GetMax(particles);
+		// settings.GetMax(particles);
 		// Get chosen plot
 		Vector<Choice> choices = dlg.getChoices();
 		int plotType = choices.get(1).getSelectedIndex();
-		/*
-		 * if (cbx.get(CB_SCATTER_POS).getState()) { DoScatterPlot(settings, true); } if
-		 * (cbx.get(CB_SCATTER_ALL).getState()) { DoScatterPlot(settings, false); }
-		 * 
-		 * if (cbx.get(CB_INTENSITY_POS).getState()) {
-		 * DoSortedIntensityPlot(settings,true); }
-		 * 
-		 * if (cbx.get(CB_INTENSITY_ALL).getState()) {
-		 * DoSortedIntensityPlot(settings,false); } // settings.bucketWidth = 0; if
-		 * (cbx.get(CB_FREQUENCY_POS).getState()) { DoFrequencyPlot(settings,
-		 * settings.bucketWidth,true,false,false,"Frequency Plot: Positives" ); } if
-		 * (cbx.get(CB_FREQUENCY_ALL).getState()) { if (!settings.bGreyscale) {
-		 * DoFrequencyPlot(settings, settings.bucketWidth, false,true,false
-		 * ,"Frequency Plot: All Red Particles"); } DoFrequencyPlot(settings,
-		 * settings.bucketWidth, false, false, true,
-		 * "Frequency Plot: All Green Particles"); }
-		 */
 
 		switch (plotType) {
 		case 0: // All particles scatter plot
@@ -936,8 +651,8 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	 */
 	public void DoPopupMenu(ParticleList pList, int x, int y, int offScreenX, int offScreenY) {
 		JPopupMenu menu = new JPopupMenu("Add Menu");
-		Particle p = new Particle(particles.GetMaxID(), offScreenX, offScreenY, settings);
-		p.setIntensity();
+		Particle p = new Particle(particles.GetMaxID(), offScreenX, offScreenY);
+
 		p.setPct();
 		p.classify();
 		PopupActionListener listener = new PopupActionListener(p);
@@ -1200,14 +915,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 				}
 
 			}
-			/*
-			 * if (bNoisey) { if ((p.rawred >s.redBackground && p.rawred <= s.redThreshold
-			 * && p.rawgreen <= s.greenThreshold) || (p.rawgreen > s.greenBackground &&
-			 * p.rawgreen <= s.greenThreshold && p.rawred <= s.redThreshold)) { //
-			 * IJ.log("Adding " + s.id[i]); s.overlay.add(p.roi, String.valueOf(p.id)); }
-			 * 
-			 * }
-			 */
+		
 		}
 		/*
 		 * s.overlay.drawLabels(true);
@@ -1224,91 +932,9 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 	private void DoSortedIntensityPlot(AnalysisSettings s, boolean bPositivesOnly) {
 
-		// Get indexes for red values sorted in increasing order
-		if (s.debug > 0) {
-			IJ.log("DoSortedIntensityPlot");
-			IJ.log("maxPositive green: " + s.maxPositiveGreen);
-		}
-		// Get
-		Integer[] positions;
-
-		int i, j;
-
-		int n = 0; // Number of points to be plotted
-		ParticleList pList = particles;
-
-		if (bPositivesOnly) {
-			pList = particles.GetPosRedList();
-		} else {
-			pList = particles;
-
-		}
-		positions = utils.rankPositions(pList.GetArrayFromList("redval"));
-
-		n = pList.size();
-
-		double[] x = new double[n];
-		double[] y = new double[n];
-		double[] index = new double[n];
-		n = 0;
-
-		for (i = 0; i < positions.length; i++) {
-
-			j = positions[i];
-			index[n] = n;
-			x[n] = pList.get(j).redval();
-			y[n++] = pList.get(j).greenval();
-		}
-
-		double yMax = pList.Max("green", s.thresholdMethod) * 1.1;
-		if (bPositivesOnly && pList.Max("red", s.thresholdMethod) > yMax) {
-			yMax = pList.Max("red", s.thresholdMethod) * 1.1;
-		}
-
-		else if (pList.Max("red", s.thresholdMethod) > yMax) {
-			yMax = pList.Max("red", s.thresholdMethod) * 1.1;
-		}
-
-		Plot p = new Plot("Sorted Intensity Plot: " + (bPositivesOnly ? "Positives" : "All"), "n",
-				settings.thresholdMethod == ThresholdMode.THRESHOLD_MEAN ? "Mean " : "" + "Intensity");
-		p.setLimits(0, n, 0, yMax);
-		p.setFont(-1, 14);
-		if (bPositivesOnly) {
-			p.addText("Capsid Positive and AHA Detection", n / 3, yMax * 0.95);
-		} else {
-			p.addText("All Capsid and AHA Detection", n / 3, yMax * 0.95);
-
-		}
-		p.addText("[" + s.image.getTitle() + "]", n / 3, yMax * 0.88);
-		p.setFont(-1, 12);
-		p.addText("(sorted by Capsid Intensity)", n / 3, yMax * 0.83);
-
-		p.setLineWidth(2);
-		p.setColor(Color.green);
-		p.add("cross", index, y);
-		p.setLineWidth(1);
-
-		p.add("line", index, y);
-
-		// Now if doing all, show the threshold
-		if (!bPositivesOnly) {
-			p.setLineWidth(2);
-			p.setColor(Color.green);
-			p.drawDottedLine(0, s.greenThreshold, pList.size(), s.greenThreshold, 3);
-			p.setColor(Color.red);
-			p.drawDottedLine(0, s.redThreshold, pList.size(), s.redThreshold, 2);
-		}
-
-		p.setColor(Color.red);
-		p.setLineWidth(1);
-
-		p.add("line", index, x);
-
-		p.setLineWidth(2);
-		p.add("dot", index, x);
-
-		p.show();
-
+		SortedIntensityPlot plot = new 	SortedIntensityPlot(this.particles, bPositivesOnly, s.thresholdMethod==ThresholdMode.THRESHOLD_MEAN
+				,s.image.getTitle(),s.greenThreshold,s.redThreshold);
+		
 	}
 
 	public void DoSummaryResults() {
@@ -1510,6 +1136,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	 */
 	public ParticleList GetMaxima() {
 		ParticleList pList = new ParticleList();
+		Particle.setSettings(settings);
 		MaximumFinder mf = new MaximumFinder();
 		ImageProcessor ip = settings.image.getProcessor();
 		// Get us maxima as Polygon
@@ -1523,14 +1150,11 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 		java.awt.Polygon maxima = mf.getMaxima(ip, settings.noiseTolerance, true);
 
-		if (settings.debug > 0) {
+		if (IJ.debugMode) {
 			IJ.log("Maxima count=" + maxima.xpoints.length);
 		}
 
 		Roi[] rois = new Roi[maxima.xpoints.length];
-
-		// Get rid of anything there already
-		// if (settings.debug > 0 ) { IJ.log("Reset ROI"); }
 
 		// Add a circle for each
 		double x, y;
@@ -1541,7 +1165,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 			y = maxima.ypoints[i]; // * 1.0 - settings.pointDiameter / 2.0;
 			// Check not too close too edge
 			if ((x - settings.pointDiameter / 2.0 >= 0) && (y - settings.pointDiameter / 2.0 >= 0)) {
-				pList.add(new Particle(id + 1, x, y, settings));
+				pList.add(new Particle(id + 1, x, y));
 				id++;
 			}
 		}
@@ -1714,7 +1338,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	 * We set up a dialog and everything is then controlled from it
 	 */
 	public void run(String arg) {
-		IJ.setDebugMode(false);
+		IJ.setDebugMode(true);
 		DoDialog();
 		if (IJ.debugMode) {IJ.log("Capsid: Dialog done");}
 	}
@@ -1774,13 +1398,11 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	public void SetResults(AnalysisSettings s) {
 
 		Color roiColor;
-		if (s.debug > 0) {
+		if (IJ.debugMode) {
 			IJ.log("Set results - " + particles.size() + " particles");
-		}
-
-		if (s.debug > 0) {
 			IJ.log("Background red: " + s.redBackground + ", green: " + s.greenBackground);
 		}
+		
 		rt = (ResultsTable2) ResultsTable.getResultsTable();
 		s.nRed = 0;
 		s.nGreen = 0;
@@ -1832,15 +1454,11 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 
 			  } else { rt.addValue("HasGreen", "No"); }
 			 
-			rt.addValue("RedMean", p.redmean);
-			rt.addValue("RedStdDev", p.redstdDev);
-			// rt.addValue("RedMeanDiff", p.redmean-settings.redBackgroundMean);
-			rt.addValue("GreenMean", p.greenmean);
-			rt.addValue("GreenStdDev", p.greenstdDev);
-			// rt.addValue("GreenMeanDiff", p.greenmean-settings.greenBackgroundMean);
-			// s.roi[i] = roi;
-			// s.rt.addValue("RedMean", s.redMean[i]);
-			// s.rt.addValue("GreenMean", s.greenMean[i]);
+			rt.addValue("RedMean", p.stats.redMean);
+			rt.addValue("RedStdDev", p.stats.redStdDev);
+		
+			rt.addValue("GreenMean", p.stats.greenMean);
+	
 		}
 		rt.showRowNumbers(false);
 		rt.show("Results");
@@ -1891,14 +1509,14 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 	public void SetThresholdFromParticle(Particle p, String channel, boolean setBelow) {
 		if (settings.thresholdMethod == ThresholdMode.THRESHOLD_MEAN) {
 			if (channel == "green") {
-				settings.greenThreshold = p.greenmean;
+				settings.greenThreshold = p.stats.greenMean;
 				if (setBelow) {
-					settings.greenThreshold = p.greenmean * 1.005;
+					settings.greenThreshold = p.stats.greenMean * 1.005;
 				}
 			} else {
-				settings.redThreshold = p.redmean;
+				settings.redThreshold = p.stats.redMean;
 				if (setBelow) {
-					settings.redThreshold = p.redmean * 1.005;
+					settings.redThreshold = p.stats.redMean * 1.005;
 				}
 			}
 		} else {
@@ -1942,7 +1560,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		// s.redThreshold = s.redBackground * 1.1;
 		settings.redThreshold = settings.redBackground * (1.0 + (255.0 / stats.max) * 0.1); // Default threshold
 
-		if (settings.debug > 0) {
+		if (IJ.debugMode) {
 			IJ.log("red Mean, mode, median=" + stats.mean + ", " + stats.mode + ", " + stats.median);
 			IJ.log("red SD=" + stats.stdDev);
 			IJ.log("red max,min=" + stats.max + " , " + stats.min);
@@ -1966,7 +1584,7 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		// s.greenThreshold = s.greenBackground * 1.1;
 		settings.greenThreshold = settings.greenBackground * (1.0 + (255.0 / stats.max) * 0.1);
 
-		if (settings.debug > 0) {
+		if (IJ.debugMode) {
 			IJ.log("green Mean, mode, median=" + stats.mean + ", " + stats.mode + ", " + stats.median);
 			IJ.log("green SD=" + stats.stdDev);
 			IJ.log("green max,min=" + stats.max + " , " + stats.min);
@@ -1977,9 +1595,12 @@ public class Capsid_Analysis implements PlugIn, ActionListener {
 		ColorProcessor.setWeightingFactors(currentWeights[0], currentWeights[1], currentWeights[2]);
 
 		// Test my mean and SD
-		int[] pixels = (int[]) settings.image.getProcessor().getPixels();
-		IJ.log("My Red mean and SD: " + utils.Mean(pixels, "red") + ", " + utils.StdDev(pixels, "red"));
-		IJ.log("My Green mean and SD: " + utils.Mean(pixels, "green") + ", " + utils.StdDev(pixels, "green"));
+		if (IJ.debugMode) {
+			int[] pixels = (int[]) settings.image.getProcessor().getPixels();
+			PixelStats pixelStats = new PixelStats(pixels);
+			IJ.log("My Red mean and SD: " + pixelStats.redMean + ", " + pixelStats.redStdDev);
+			IJ.log("My Green mean and SD: " + pixelStats.greenMean + ", " + pixelStats.greenStdDev);
+		}
 
 	}
 
